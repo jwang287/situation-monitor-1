@@ -24,6 +24,17 @@ const ALLOWED_DOMAINS = [
   'feeds.bbci.co.uk'
 ];
 
+// 检查域名是否在白名单中
+function isDomainAllowed(hostname) {
+  return ALLOWED_DOMAINS.some(domain => {
+    // 完全匹配
+    if (hostname === domain) return true;
+    // 子域名匹配 (例如: api.finnhub.io 匹配 finnhub.io)
+    if (hostname.endsWith('.' + domain)) return true;
+    return false;
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     // 处理CORS预检请求
@@ -60,11 +71,14 @@ export default {
 
     // 验证目标URL
     let targetDomain;
+    let decodedUrl;
     try {
-      targetDomain = new URL(targetUrl).hostname;
+      // 先解码 URL，因为传入的可能是编码后的
+      decodedUrl = decodeURIComponent(targetUrl);
+      targetDomain = new URL(decodedUrl).hostname;
     } catch (e) {
       return new Response(
-        JSON.stringify({ error: 'Invalid URL', url: targetUrl }),
+        JSON.stringify({ error: 'Invalid URL', url: targetUrl, decoded: decodedUrl || 'none' }),
         {
           status: 400,
           headers: {
@@ -76,11 +90,11 @@ export default {
     }
 
     console.log('Target domain:', targetDomain);
+    console.log('Decoded URL:', decodedUrl);
 
     // 验证域名白名单
-    const isAllowed = ALLOWED_DOMAINS.some(domain => 
-      targetDomain === domain || targetDomain.endsWith('.' + domain)
-    );
+    const isAllowed = isDomainAllowed(targetDomain);
+    console.log('Is allowed:', isAllowed);
     
     if (!isAllowed) {
       console.error('Domain not allowed:', targetDomain);
@@ -102,8 +116,8 @@ export default {
 
     // 转发请求
     try {
-      console.log('Fetching:', targetUrl);
-      const response = await fetch(targetUrl, {
+      console.log('Fetching:', decodedUrl);
+      const response = await fetch(decodedUrl, {
         method: request.method,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',

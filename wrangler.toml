@@ -1,6 +1,19 @@
-name = "situation-03"
-main = "proxy-worker.js"
+name = "situation-monitor"
 compatibility_date = "2024-01-01"
 
+# Cloudflare Pages configuration
+[site]
+bucket = "./build"
+
+# Build command
+[build]
+command = "npm run build"
+
+# Environment variables
 [env.production]
-name = "situation-03"
+name = "situation-monitor"
+
+# Routes configuration
+[[routes]]
+pattern = "/*"
+script = ""
