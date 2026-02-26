@@ -116,41 +116,41 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.75rem 1rem;
+		padding: 1rem 1.25rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
-		min-height: 2.5rem;
+		min-height: 3rem;
 	}
 
 	.panel-title-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.panel-title {
-		font-size: 0.75rem;
+		font-size: 0.9rem;
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		letter-spacing: 0.08em;
 		color: var(--text-secondary);
 		margin: 0;
 	}
 
 	.panel-count {
-		font-size: 0.7rem;
-		font-weight: 500;
+		font-size: 0.85rem;
+		font-weight: 600;
 		color: var(--accent);
 		background: rgba(var(--accent-rgb), 0.15);
-		padding: 0.15rem 0.5rem;
-		border-radius: 4px;
+		padding: 0.2rem 0.6rem;
+		border-radius: 6px;
 	}
 
 	.panel-status {
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-weight: 600;
-		padding: 0.15rem 0.5rem;
-		border-radius: 4px;
+		padding: 0.2rem 0.6rem;
+		border-radius: 6px;
 		text-transform: uppercase;
 	}
 
@@ -170,8 +170,8 @@
 	}
 
 	.panel-loading {
-		width: 14px;
-		height: 14px;
+		width: 18px;
+		height: 18px;
 		border: 2px solid var(--border);
 		border-top-color: var(--accent);
 		border-radius: 50%;
@@ -187,7 +187,7 @@
 	.panel-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.panel-collapse-btn {
@@ -195,8 +195,8 @@
 		border: none;
 		color: var(--text-secondary);
 		cursor: pointer;
-		padding: 0.25rem;
-		font-size: 0.6rem;
+		padding: 0.35rem;
+		font-size: 0.8rem;
 		line-height: 1;
 		transition: color 0.15s ease;
 	}
@@ -208,7 +208,7 @@
 	.panel-content {
 		flex: 1;
 		overflow-y: auto;
-		padding: 0.75rem;
+		padding: 1rem;
 	}
 
 	.panel-content.hidden {
@@ -218,7 +218,7 @@
 	.error-msg {
 		color: var(--danger);
 		text-align: center;
-		padding: 1rem;
-		font-size: 0.75rem;
+		padding: 1.5rem;
+		font-size: 0.9rem;
 	}
 </style>

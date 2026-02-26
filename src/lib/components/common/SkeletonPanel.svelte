@@ -23,48 +23,48 @@
 
 <style>
 	.skeleton-panel {
-		padding: 0.75rem;
+		padding: 1rem;
 	}
 
 	.skeleton-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 0.75rem;
-		padding-bottom: 0.5rem;
+		margin-bottom: 1rem;
+		padding-bottom: 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
 	.skeleton-title {
-		width: 120px;
-		height: 14px;
+		width: 140px;
+		height: 18px;
 		background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
 		background-size: 200% 100%;
 		animation: shimmer 1.5s infinite;
-		border-radius: 3px;
+		border-radius: 4px;
 	}
 
 	.skeleton-badge {
-		width: 40px;
-		height: 14px;
+		width: 50px;
+		height: 18px;
 		background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
 		background-size: 200% 100%;
 		animation: shimmer 1.5s infinite;
-		border-radius: 3px;
+		border-radius: 4px;
 	}
 
 	.skeleton-content {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.skeleton-line {
-		height: 10px;
+		height: 14px;
 		background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
 		background-size: 200% 100%;
 		animation: shimmer 1.5s infinite;
-		border-radius: 2px;
+		border-radius: 3px;
 	}
 
 	@keyframes shimmer {
