@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { PanelId } from '$lib/config';
+	import SkeletonPanel from './SkeletonPanel.svelte';
 
 	interface Props {
 		id: PanelId;
@@ -17,6 +18,7 @@
 		header?: Snippet;
 		actions?: Snippet;
 		children: Snippet;
+		skeletonLines?: number;
 	}
 
 	let {
@@ -33,7 +35,8 @@
 		onCollapse,
 		header,
 		actions,
-		children
+		children,
+		skeletonLines = 5
 	}: Props = $props();
 
 	function handleCollapse() {
@@ -78,7 +81,7 @@
 		{#if error}
 			<div class="error-msg">{error}</div>
 		{:else if loading}
-			<div class="loading-msg">Loading...</div>
+			<SkeletonPanel lines={skeletonLines} header={false} />
 		{:else}
 			{@render children()}
 		{/if}

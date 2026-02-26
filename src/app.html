@@ -6,6 +6,16 @@
 		<meta name="description" content="Real-time global situation monitoring dashboard" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" />
 		<title>Situation Monitor</title>
+		
+		<!-- DNS预连接 - 加速外部资源加载 -->
+		<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+		<link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+		<link rel="dns-prefetch" href="https://api.gdeltproject.org">
+		<link rel="dns-prefetch" href="https://situation-03.jwang287.workers.dev">
+		<link rel="dns-prefetch" href="https://api.coingecko.com">
+		<link rel="dns-prefetch" href="https://api.stlouisfed.org">
+		<link rel="dns-prefetch" href="https://earthquake.usgs.gov">
+		
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
