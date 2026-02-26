@@ -21,7 +21,8 @@ const ALLOWED_DOMAINS = [
   'www.federalreserve.gov',
   'news.google.com',
   'rss.cnn.com',
-  'feeds.bbci.co.uk'
+  'feeds.bbci.co.uk',
+  'api.mymemory.translated.net'
 ];
 
 // 检查域名是否在白名单中

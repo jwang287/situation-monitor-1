@@ -11,27 +11,35 @@
 	let translatedText = $state<string>('');
 	let isLoading = $state(false);
 	let hasError = $state(false);
+	let debugInfo = $state<string>('');
 
 	$effect(() => {
+		console.log('[BilingualText] enableTranslation:', enableTranslation, 'text:', text?.substring(0, 30));
 		if (enableTranslation && text) {
 			isLoading = true;
 			hasError = false;
 			translatedText = '';
+			debugInfo = '翻译中...';
 
 			translationService
 				.translate(text)
 				.then((result) => {
+					console.log('[BilingualText] Translation result:', result?.substring(0, 30));
 					translatedText = result;
 					isLoading = false;
+					debugInfo = '翻译完成';
 				})
-				.catch(() => {
+				.catch((err) => {
+					console.error('[BilingualText] Translation error:', err);
 					hasError = true;
 					isLoading = false;
+					debugInfo = '翻译失败: ' + err.message;
 				});
 		} else {
 			translatedText = '';
 			isLoading = false;
 			hasError = false;
+			debugInfo = enableTranslation ? '等待文本...' : '翻译已禁用';
 		}
 	});
 </script>
@@ -43,6 +51,7 @@
 		{#if isLoading}
 			<div class="loading-indicator">
 				<div class="spinner"></div>
+				<span class="loading-text">翻译中...</span>
 			</div>
 		{:else if translatedText && !hasError}
 			<div class="divider"></div>
@@ -90,6 +99,11 @@
 		border-top-color: var(--accent);
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
+	}
+
+	.loading-text {
+		font-size: 0.6rem;
+		color: var(--text-muted);
 	}
 
 	@keyframes spin {

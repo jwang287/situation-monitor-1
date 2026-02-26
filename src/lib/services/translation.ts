@@ -4,6 +4,7 @@
  */
 
 import { CacheManager } from './cache';
+import { fetchWithProxy } from '$lib/config/api';
 
 export interface TranslationOptions {
 	sourceLang?: string;
@@ -278,19 +279,15 @@ export class TranslationService {
 	}
 
 	/**
-	 * 调用 MyMemory API
+	 * 调用 MyMemory API (通过 CORS 代理)
 	 */
 	private async callMyMemoryAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
 		const encodedText = encodeURIComponent(text);
 		const langPair = `${options.sourceLang}|${options.targetLang}`;
 		const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${langPair}`;
 
-		const response = await fetch(url, {
-			method: 'GET',
-			headers: {
-				Accept: 'application/json'
-			}
-		});
+		// 使用 CORS 代理访问翻译 API
+		const response = await fetchWithProxy(url);
 
 		if (!response.ok) {
 			throw new Error(`HTTP error! status: ${response.status}`);
