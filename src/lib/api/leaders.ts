@@ -4,7 +4,7 @@
 
 import { WORLD_LEADERS } from '$lib/config/leaders';
 import type { WorldLeader, LeaderNews } from '$lib/types';
-import { CORS_PROXY_URL, logger } from '$lib/config/api';
+import { fetchWithProxy, logger } from '$lib/config/api';
 
 interface GdeltArticle {
 	title: string;
@@ -26,9 +26,7 @@ async function fetchLeaderNews(leader: WorldLeader): Promise<WorldLeader> {
 
 	try {
 		const gdeltUrl = `https://api.gdeltproject.org/api/v2/doc/doc?query=${query}&mode=artlist&maxrecords=5&format=json&sort=date`;
-		const proxyUrl = CORS_PROXY_URL + encodeURIComponent(gdeltUrl);
-
-		const response = await fetch(proxyUrl);
+		const response = await fetchWithProxy(gdeltUrl);
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status}`);
 		}

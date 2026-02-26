@@ -11,6 +11,19 @@
  * 7. 更新api.ts中的CORS_PROXIES配置
  */
 
+// 允许的域名白名单 - 只允许访问这些API
+const ALLOWED_DOMAINS = [
+  'api.gdeltproject.org',
+  'finnhub.io',
+  'api.stlouisfed.org',
+  'earthquake.usgs.gov',
+  'api.coingecko.com',
+  'www.federalreserve.gov',
+  'news.google.com',
+  'rss.cnn.com',
+  'feeds.bbci.co.uk'
+];
+
 export default {
   async fetch(request, env, ctx) {
     // 处理CORS预检请求
@@ -63,6 +76,29 @@ export default {
     }
 
     console.log('Target domain:', targetDomain);
+
+    // 验证域名白名单
+    const isAllowed = ALLOWED_DOMAINS.some(domain => 
+      targetDomain === domain || targetDomain.endsWith('.' + domain)
+    );
+    
+    if (!isAllowed) {
+      console.error('Domain not allowed:', targetDomain);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Domain not allowed', 
+          domain: targetDomain,
+          allowedDomains: ALLOWED_DOMAINS 
+        }),
+        {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
 
     // 转发请求
     try {

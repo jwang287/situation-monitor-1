@@ -89,7 +89,7 @@ const SERVICE_CONFIG: Record<ServiceId, ServiceConfig> = {
 		id: 'cors_proxy',
 		baseUrl: null, // Uses proxy URLs from list
 		proxies: [
-			'https://situation-monitor-proxy.seanthielen-e.workers.dev/?url=',
+			'https://situation-03.jwang287.workers.dev/?url=',
 			'https://api.allorigins.win/raw?url='
 		],
 		timeout: 12000,
