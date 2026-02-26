@@ -1,16 +1,19 @@
 /**
  * Translation Service - 支持多个翻译API（微软、谷歌、LibreTranslate）
  * 支持缓存、错误处理和批量翻译
+ * API Key从settings store获取，支持网页端配置
  */
 
 import { CacheManager } from './cache';
 import { fetchWithProxy } from '$lib/config/api';
+import { settings, type TranslationProvider } from '$lib/stores/settings';
+import { get } from 'svelte/store';
 
 export interface TranslationOptions {
 	sourceLang?: string;
 	targetLang?: string;
 	useCache?: boolean;
-	provider?: 'microsoft' | 'google' | 'libretranslate' | 'auto';
+	provider?: TranslationProvider;
 }
 
 export interface TranslationResult {
@@ -115,6 +118,29 @@ export class TranslationService {
 	}
 
 	/**
+	 * 从settings store获取API Key
+	 */
+	private getApiKey(provider: string): string {
+		const settingsState = get(settings);
+		switch (provider) {
+			case 'microsoft':
+				return settingsState.microsoftApiKey;
+			case 'google':
+				return settingsState.googleApiKey;
+			default:
+				return '';
+		}
+	}
+
+	/**
+	 * 获取当前设置的翻译提供商
+	 */
+	private getCurrentProvider(): TranslationProvider {
+		const settingsState = get(settings);
+		return settingsState.translationProvider || 'auto';
+	}
+
+	/**
 	 * 翻译单个文本
 	 */
 	async translate(text: string, options: TranslationOptions = {}): Promise<string> {
@@ -126,6 +152,11 @@ export class TranslationService {
 		const opts = { ...DEFAULT_OPTIONS, ...options };
 		if (opts.targetLang === 'zh' && this.containsChinese(text)) {
 			return text;
+		}
+
+		// 如果没有指定provider，使用settings中的设置
+		if (opts.provider === 'auto') {
+			opts.provider = this.getCurrentProvider();
 		}
 
 		// 检查缓存
@@ -347,13 +378,13 @@ export class TranslationService {
 
 	/**
 	 * 调用微软翻译API (Azure Cognitive Services)
-	 * 注意：需要配置 VITE_MICROSOFT_TRANSLATOR_KEY 环境变量
+	 * API Key从settings store获取
 	 */
 	private async callMicrosoftAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
-		const apiKey = import.meta.env.VITE_MICROSOFT_TRANSLATOR_KEY;
+		const apiKey = this.getApiKey('microsoft');
 		
 		if (!apiKey) {
-			throw new Error('Microsoft Translator API key not configured');
+			throw new Error('Microsoft Translator API key not configured. Please set it in Settings.');
 		}
 
 		const url = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=${options.sourceLang}&to=${options.targetLang}`;
@@ -383,13 +414,13 @@ export class TranslationService {
 
 	/**
 	 * 调用谷歌翻译API
-	 * 注意：需要配置 VITE_GOOGLE_TRANSLATE_KEY 环境变量
+	 * API Key从settings store获取
 	 */
 	private async callGoogleAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
-		const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATE_KEY;
+		const apiKey = this.getApiKey('google');
 		
 		if (!apiKey) {
-			throw new Error('Google Translate API key not configured');
+			throw new Error('Google Translate API key not configured. Please set it in Settings.');
 		}
 
 		const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
@@ -492,10 +523,10 @@ export class TranslationService {
 			
 			// 检查是否有API Key
 			if (provider === 'microsoft') {
-				return !!import.meta.env.VITE_MICROSOFT_TRANSLATOR_KEY;
+				return !!this.getApiKey('microsoft');
 			}
 			if (provider === 'google') {
-				return !!import.meta.env.VITE_GOOGLE_TRANSLATE_KEY;
+				return !!this.getApiKey('google');
 			}
 			return false;
 		});

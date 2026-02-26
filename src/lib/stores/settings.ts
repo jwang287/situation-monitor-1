@@ -1,5 +1,5 @@
 /**
- * Settings store - panel visibility, order, and sizes
+ * Settings store - panel visibility, order, sizes, and translation settings
  */
 
 import { writable, derived, get } from 'svelte/store';
@@ -18,8 +18,14 @@ const STORAGE_KEYS = {
 	panels: 'situationMonitorPanels',
 	order: 'panelOrder',
 	sizes: 'panelSizes',
-	translation: 'situationMonitorTranslation'
+	translation: 'situationMonitorTranslation',
+	translationProvider: 'situationMonitorTranslationProvider',
+	microsoftKey: 'situationMonitorMicrosoftKey',
+	googleKey: 'situationMonitorGoogleKey'
 } as const;
+
+// Translation provider types
+export type TranslationProvider = 'microsoft' | 'google' | 'libretranslate' | 'auto';
 
 // Types
 export interface PanelSettings {
@@ -30,6 +36,9 @@ export interface PanelSettings {
 
 export interface TranslationSettings {
 	enableTranslation: boolean;
+	translationProvider: TranslationProvider;
+	microsoftApiKey: string;
+	googleApiKey: string;
 }
 
 export interface SettingsState extends PanelSettings, TranslationSettings {
@@ -56,12 +65,18 @@ function loadFromStorage(): Partial<PanelSettings & TranslationSettings> {
 		const order = localStorage.getItem(STORAGE_KEYS.order);
 		const sizes = localStorage.getItem(STORAGE_KEYS.sizes);
 		const translation = localStorage.getItem(STORAGE_KEYS.translation);
+		const translationProvider = localStorage.getItem(STORAGE_KEYS.translationProvider);
+		const microsoftKey = localStorage.getItem(STORAGE_KEYS.microsoftKey);
+		const googleKey = localStorage.getItem(STORAGE_KEYS.googleKey);
 
 		return {
 			enabled: panels ? JSON.parse(panels) : undefined,
 			order: order ? JSON.parse(order) : undefined,
 			sizes: sizes ? JSON.parse(sizes) : undefined,
-			enableTranslation: translation ? JSON.parse(translation) : undefined
+			enableTranslation: translation ? JSON.parse(translation) : undefined,
+			translationProvider: translationProvider as TranslationProvider || undefined,
+			microsoftApiKey: microsoftKey || '',
+			googleApiKey: googleKey || ''
 		};
 	} catch (e) {
 		console.warn('Failed to load settings from localStorage:', e);
@@ -90,6 +105,9 @@ function createSettingsStore() {
 		order: saved.order ?? defaults.order,
 		sizes: { ...defaults.sizes, ...saved.sizes },
 		enableTranslation: saved.enableTranslation ?? false,
+		translationProvider: saved.translationProvider ?? 'auto',
+		microsoftApiKey: saved.microsoftApiKey ?? '',
+		googleApiKey: saved.googleApiKey ?? '',
 		initialized: false
 	};
 
@@ -215,6 +233,36 @@ function createSettingsStore() {
 		},
 
 		/**
+		 * Set translation provider
+		 */
+		setTranslationProvider(provider: TranslationProvider) {
+			update((state) => {
+				saveToStorage('translationProvider', provider);
+				return { ...state, translationProvider: provider };
+			});
+		},
+
+		/**
+		 * Set Microsoft Translator API Key
+		 */
+		setMicrosoftApiKey(key: string) {
+			update((state) => {
+				saveToStorage('microsoftKey', key);
+				return { ...state, microsoftApiKey: key };
+			});
+		},
+
+		/**
+		 * Set Google Translate API Key
+		 */
+		setGoogleApiKey(key: string) {
+			update((state) => {
+				saveToStorage('googleKey', key);
+				return { ...state, googleApiKey: key };
+			});
+		},
+
+		/**
 		 * Reset all settings to defaults
 		 */
 		reset() {
@@ -224,8 +272,18 @@ function createSettingsStore() {
 				localStorage.removeItem(STORAGE_KEYS.order);
 				localStorage.removeItem(STORAGE_KEYS.sizes);
 				localStorage.removeItem(STORAGE_KEYS.translation);
+				localStorage.removeItem(STORAGE_KEYS.translationProvider);
+				localStorage.removeItem(STORAGE_KEYS.microsoftKey);
+				localStorage.removeItem(STORAGE_KEYS.googleKey);
 			}
-			set({ ...defaults, enableTranslation: false, initialized: true });
+			set({
+				...defaults,
+				enableTranslation: false,
+				translationProvider: 'auto',
+				microsoftApiKey: '',
+				googleApiKey: '',
+				initialized: true
+			});
 		},
 
 		/**

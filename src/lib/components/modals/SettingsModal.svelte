@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
-	import { settings } from '$lib/stores';
+	import { settings, type TranslationProvider } from '$lib/stores';
 	import { PANELS, type PanelId } from '$lib/config';
 
 	interface Props {
@@ -19,16 +19,37 @@
 		settings.toggleTranslation();
 	}
 
+	function handleProviderChange(provider: TranslationProvider) {
+		settings.setTranslationProvider(provider);
+	}
+
+	function handleMicrosoftKeyChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		settings.setMicrosoftApiKey(target.value);
+	}
+
+	function handleGoogleKeyChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		settings.setGoogleApiKey(target.value);
+	}
+
 	function handleResetPanels() {
 		settings.reset();
 	}
+
+	const providerOptions: { value: TranslationProvider; label: string; desc: string }[] = [
+		{ value: 'auto', label: '自动选择', desc: '优先使用微软/谷歌，失败时自动切换到免费翻译' },
+		{ value: 'microsoft', label: '微软翻译', desc: '需要API Key，质量高，每月200万字符免费' },
+		{ value: 'google', label: '谷歌翻译', desc: '需要API Key，质量最高' },
+		{ value: 'libretranslate', label: 'LibreTranslate', desc: '免费开源，无需API Key，质量一般' }
+	];
 </script>
 
 <Modal {open} title="设置" {onClose}>
 	<div class="settings-sections">
 		<section class="settings-section">
-			<h3 class="section-title">功能设置</h3>
-			<p class="section-desc">启用或禁用额外功能</p>
+			<h3 class="section-title">翻译设置</h3>
+			<p class="section-desc">配置翻译功能和API</p>
 
 			<div class="feature-toggles">
 				<label class="feature-toggle" class:enabled={$settings.enableTranslation}>
@@ -37,10 +58,85 @@
 						checked={$settings.enableTranslation}
 						onchange={() => handleToggleTranslation()}
 					/>
-					<span class="feature-name">翻译功能</span>
-					<span class="feature-desc">启用内容自动翻译</span>
+					<span class="feature-name">启用翻译</span>
+					<span class="feature-desc">自动翻译英文内容为中文</span>
 				</label>
 			</div>
+
+			{#if $settings.enableTranslation}
+				<div class="translation-settings">
+					<div class="provider-selection">
+						<span class="setting-label">翻译服务</span>
+						<div class="provider-options">
+							{#each providerOptions as option}
+								<label class="provider-option" class:selected={$settings.translationProvider === option.value}>
+									<input
+										type="radio"
+										name="provider"
+										value={option.value}
+										checked={$settings.translationProvider === option.value}
+										onchange={() => handleProviderChange(option.value)}
+									/>
+									<div class="provider-info">
+										<span class="provider-name">{option.label}</span>
+										<span class="provider-desc">{option.desc}</span>
+									</div>
+								</label>
+							{/each}
+						</div>
+					</div>
+
+					{#if $settings.translationProvider === 'microsoft' || $settings.translationProvider === 'auto'}
+						<div class="api-key-input">
+							<label class="setting-label" for="microsoft-key">
+								微软翻译 API Key
+								<span class="key-hint">(Azure Cognitive Services)</span>
+							</label>
+							<input
+								id="microsoft-key"
+								type="password"
+								value={$settings.microsoftApiKey}
+								oninput={handleMicrosoftKeyChange}
+								placeholder="输入微软翻译API Key"
+								class="key-input"
+							/>
+							<a 
+								href="https://azure.microsoft.com/services/cognitive-services/translator/" 
+								target="_blank" 
+								rel="noopener noreferrer"
+								class="help-link"
+							>
+								如何获取?
+							</a>
+						</div>
+					{/if}
+
+					{#if $settings.translationProvider === 'google' || $settings.translationProvider === 'auto'}
+						<div class="api-key-input">
+							<label class="setting-label" for="google-key">
+								谷歌翻译 API Key
+								<span class="key-hint">(Google Cloud Translation)</span>
+							</label>
+							<input
+								id="google-key"
+								type="password"
+								value={$settings.googleApiKey}
+								oninput={handleGoogleKeyChange}
+								placeholder="输入谷歌翻译API Key"
+								class="key-input"
+							/>
+							<a 
+								href="https://cloud.google.com/translate" 
+								target="_blank" 
+								rel="noopener noreferrer"
+								class="help-link"
+							>
+								如何获取?
+							</a>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</section>
 
 		<section class="settings-section">
@@ -144,6 +240,121 @@
 		font-size: 0.6rem;
 		color: var(--text-muted);
 		text-align: right;
+	}
+
+	.translation-settings {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		padding: 1rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		margin-top: 0.5rem;
+	}
+
+	.setting-label {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		margin-bottom: 0.5rem;
+		display: block;
+	}
+
+	.key-hint {
+		font-weight: 400;
+		color: var(--text-muted);
+		font-size: 0.6rem;
+	}
+
+	.provider-selection {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.provider-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.provider-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.provider-option:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.provider-option.selected {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.1);
+	}
+
+	.provider-option input {
+		margin-top: 0.1rem;
+		accent-color: var(--accent);
+	}
+
+	.provider-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.provider-name {
+		font-size: 0.7rem;
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.provider-desc {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+	}
+
+	.api-key-input {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.key-input {
+		padding: 0.5rem 0.75rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		color: var(--text-primary);
+		font-size: 0.7rem;
+		transition: all 0.15s ease;
+	}
+
+	.key-input:focus {
+		outline: none;
+		border-color: var(--accent);
+	}
+
+	.key-input::placeholder {
+		color: var(--text-muted);
+	}
+
+	.help-link {
+		font-size: 0.6rem;
+		color: var(--accent);
+		text-decoration: none;
+		margin-top: 0.25rem;
+	}
+
+	.help-link:hover {
+		text-decoration: underline;
 	}
 
 	.panels-grid {
