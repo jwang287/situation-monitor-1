@@ -1,5 +1,5 @@
 /**
- * Translation Service - 使用 MyMemory API 实现翻译功能
+ * Translation Service - 支持多个翻译API（微软、谷歌、LibreTranslate）
  * 支持缓存、错误处理和批量翻译
  */
 
@@ -10,11 +10,13 @@ export interface TranslationOptions {
 	sourceLang?: string;
 	targetLang?: string;
 	useCache?: boolean;
+	provider?: 'microsoft' | 'google' | 'libretranslate' | 'auto';
 }
 
 export interface TranslationResult {
 	translatedText: string;
 	fromCache: boolean;
+	provider: string;
 }
 
 export interface BatchTranslationResult {
@@ -26,19 +28,46 @@ export interface TranslationCacheEntry {
 	originalText: string;
 	translatedText: string;
 	timestamp: number;
+	provider: string;
 }
 
 const DEFAULT_OPTIONS: Required<TranslationOptions> = {
 	sourceLang: 'en',
 	targetLang: 'zh',
-	useCache: true
+	useCache: true,
+	provider: 'auto'
 };
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 100;
+const BATCH_SIZE = 3;
+const BATCH_DELAY_MS = 200;
+
+// 翻译API配置
+const TRANSLATION_PROVIDERS = {
+	// 微软翻译API (Azure Cognitive Services)
+	microsoft: {
+		name: 'Microsoft',
+		url: 'https://api.cognitive.microsofttranslator.com/translate',
+		requiresKey: true,
+		priority: 1
+	},
+	// 谷歌翻译API (需要API Key)
+	google: {
+		name: 'Google',
+		url: 'https://translation.googleapis.com/language/translate/v2',
+		requiresKey: true,
+		priority: 2
+	},
+	// LibreTranslate (免费开源翻译API)
+	libretranslate: {
+		name: 'LibreTranslate',
+		url: 'https://libretranslate.de/translate',
+		requiresKey: false,
+		priority: 3
+	}
+};
 
 /**
  * 生成文本的哈希值（用于缓存键）
@@ -72,12 +101,17 @@ export class TranslationService {
 		reject: (reason: unknown) => void;
 	}>;
 	private batchTimer: ReturnType<typeof setTimeout> | null;
+	private providerPriority: string[];
 
 	constructor() {
 		this.cache = new CacheManager({ prefix: 'sm_translation_' });
 		this.pendingRequests = new Map();
 		this.batchQueue = [];
 		this.batchTimer = null;
+		// 按优先级排序的提供商列表
+		this.providerPriority = Object.entries(TRANSLATION_PROVIDERS)
+			.sort((a, b) => a[1].priority - b[1].priority)
+			.map(([key]) => key);
 	}
 
 	/**
@@ -98,7 +132,7 @@ export class TranslationService {
 		if (opts.useCache) {
 			const cached = this.getFromCache(text, opts);
 			if (cached) {
-				return cached;
+				return cached.translatedText;
 			}
 		}
 
@@ -135,15 +169,18 @@ export class TranslationService {
 			const batchPromises = batch.map(async (text) => {
 				try {
 					const translated = await this.translate(text, options);
+					const cached = this.getFromCache(text, { ...DEFAULT_OPTIONS, ...options });
 					results.set(text, {
 						translatedText: translated,
-						fromCache: this.getFromCache(text, { ...DEFAULT_OPTIONS, ...options }) !== null
+						fromCache: cached !== null,
+						provider: cached?.provider || 'unknown'
 					});
 				} catch {
 					failed.push(text);
 					results.set(text, {
 						translatedText: text,
-						fromCache: false
+						fromCache: false,
+						provider: 'failed'
 					});
 				}
 			});
@@ -201,12 +238,12 @@ export class TranslationService {
 	/**
 	 * 获取缓存中的翻译
 	 */
-	private getFromCache(text: string, options: Required<TranslationOptions>): string | null {
+	private getFromCache(text: string, options: Required<TranslationOptions>): TranslationCacheEntry | null {
 		const cacheKey = this.getCacheKey(text, options);
 		const cached = this.cache.get<TranslationCacheEntry>(cacheKey);
 
 		if (cached && cached.data.translatedText) {
-			return cached.data.translatedText;
+			return cached.data;
 		}
 		return null;
 	}
@@ -217,13 +254,15 @@ export class TranslationService {
 	private saveToCache(
 		text: string,
 		translatedText: string,
+		provider: string,
 		options: Required<TranslationOptions>
 	): void {
 		const cacheKey = this.getCacheKey(text, options);
 		const entry: TranslationCacheEntry = {
 			originalText: text,
 			translatedText,
-			timestamp: Date.now()
+			timestamp: Date.now(),
+			provider
 		};
 		this.cache.set(cacheKey, entry, CACHE_TTL_MS);
 	}
@@ -244,67 +283,189 @@ export class TranslationService {
 	}
 
 	/**
-	 * 从 MyMemory API 获取翻译（带重试）
+	 * 获取要使用的翻译提供商列表
+	 */
+	private getProviderList(options: Required<TranslationOptions>): string[] {
+		if (options.provider !== 'auto') {
+			return [options.provider];
+		}
+		return this.providerPriority;
+	}
+
+	/**
+	 * 从翻译API获取翻译（带重试和自动切换提供商）
 	 */
 	private async fetchTranslation(text: string, options: Required<TranslationOptions>): Promise<string> {
+		const providers = this.getProviderList(options);
 		let lastError: Error | null = null;
 
-		for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-			try {
-				const result = await this.callMyMemoryAPI(text, options);
+		for (const provider of providers) {
+			for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+				try {
+					let result: string;
+					
+					switch (provider) {
+						case 'microsoft':
+							result = await this.callMicrosoftAPI(text, options);
+							break;
+						case 'google':
+							result = await this.callGoogleAPI(text, options);
+							break;
+						case 'libretranslate':
+							result = await this.callLibreTranslateAPI(text, options);
+							break;
+						default:
+							throw new Error(`Unknown provider: ${provider}`);
+					}
 
-				// 保存到缓存
-				if (options.useCache) {
-					this.saveToCache(text, result, options);
+					// 保存到缓存
+					if (options.useCache) {
+						this.saveToCache(text, result, provider, options);
+					}
+
+					return result;
+				} catch (error) {
+					lastError = error as Error;
+					console.warn(`[TranslationService] ${provider} translation failed (attempt ${attempt + 1}):`, error);
+
+					// 最后一次尝试，不再重试
+					if (attempt === MAX_RETRIES - 1) {
+						break;
+					}
+
+					// 指数退避延迟
+					const backoffDelay = RETRY_DELAY_MS * Math.pow(2, attempt);
+					await delay(backoffDelay);
 				}
-
-				return result;
-			} catch (error) {
-				lastError = error as Error;
-
-				// 最后一次尝试，不再重试
-				if (attempt === MAX_RETRIES - 1) {
-					break;
-				}
-
-				// 指数退避延迟
-				const backoffDelay = RETRY_DELAY_MS * Math.pow(2, attempt);
-				await delay(backoffDelay);
 			}
 		}
 
-		// 所有重试失败，返回原文
-		console.warn(`[TranslationService] Translation failed after ${MAX_RETRIES} attempts:`, lastError);
+		// 所有提供商都失败，返回原文
+		console.warn(`[TranslationService] All translation providers failed:`, lastError);
 		return text;
 	}
 
 	/**
-	 * 调用 MyMemory API (通过 CORS 代理)
+	 * 调用微软翻译API (Azure Cognitive Services)
+	 * 注意：需要配置 VITE_MICROSOFT_TRANSLATOR_KEY 环境变量
 	 */
-	private async callMyMemoryAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
-		const encodedText = encodeURIComponent(text);
-		const langPair = `${options.sourceLang}|${options.targetLang}`;
-		const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${langPair}`;
+	private async callMicrosoftAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
+		const apiKey = import.meta.env.VITE_MICROSOFT_TRANSLATOR_KEY;
+		
+		if (!apiKey) {
+			throw new Error('Microsoft Translator API key not configured');
+		}
 
-		// 使用 CORS 代理访问翻译 API
-		const response = await fetchWithProxy(url);
+		const url = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=${options.sourceLang}&to=${options.targetLang}`;
+		
+		const response = await fetchWithProxy(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Ocp-Apim-Subscription-Key': apiKey,
+				'Ocp-Apim-Subscription-Region': 'global'
+			},
+			body: JSON.stringify([{ Text: text }])
+		});
 
 		if (!response.ok) {
-			throw new Error(`HTTP error! status: ${response.status}`);
+			throw new Error(`Microsoft API error: ${response.status}`);
 		}
 
 		const data = await response.json();
-
-		// 检查 API 响应状态
-		if (data.responseStatus && data.responseStatus !== 200) {
-			throw new Error(`API error: ${data.responseDetails || 'Unknown error'}`);
+		
+		if (!data || !data[0] || !data[0].translations || !data[0].translations[0]) {
+			throw new Error('Invalid Microsoft API response format');
 		}
 
-		if (!data.responseData || !data.responseData.translatedText) {
-			throw new Error('Invalid API response format');
+		return data[0].translations[0].text;
+	}
+
+	/**
+	 * 调用谷歌翻译API
+	 * 注意：需要配置 VITE_GOOGLE_TRANSLATE_KEY 环境变量
+	 */
+	private async callGoogleAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
+		const apiKey = import.meta.env.VITE_GOOGLE_TRANSLATE_KEY;
+		
+		if (!apiKey) {
+			throw new Error('Google Translate API key not configured');
 		}
 
-		return data.responseData.translatedText;
+		const url = `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`;
+		
+		const response = await fetchWithProxy(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				q: text,
+				source: options.sourceLang,
+				target: options.targetLang,
+				format: 'text'
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error(`Google API error: ${response.status}`);
+		}
+
+		const data = await response.json();
+		
+		if (!data.data || !data.data.translations || !data.data.translations[0]) {
+			throw new Error('Invalid Google API response format');
+		}
+
+		return data.data.translations[0].translatedText;
+	}
+
+	/**
+	 * 调用LibreTranslate API (免费开源)
+	 */
+	private async callLibreTranslateAPI(text: string, options: Required<TranslationOptions>): Promise<string> {
+		// LibreTranslate 支持的语言代码映射
+		const langMap: Record<string, string> = {
+			'zh': 'zh',
+			'en': 'en',
+			'ja': 'ja',
+			'ko': 'ko',
+			'fr': 'fr',
+			'de': 'de',
+			'es': 'es',
+			'ru': 'ru'
+		};
+
+		const sourceLang = langMap[options.sourceLang] || 'en';
+		const targetLang = langMap[options.targetLang] || 'zh';
+
+		const url = 'https://libretranslate.de/translate';
+		
+		const response = await fetchWithProxy(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json'
+			},
+			body: JSON.stringify({
+				q: text,
+				source: sourceLang,
+				target: targetLang,
+				format: 'text'
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error(`LibreTranslate API error: ${response.status}`);
+		}
+
+		const data = await response.json();
+		
+		if (!data || !data.translatedText) {
+			throw new Error('Invalid LibreTranslate API response format');
+		}
+
+		return data.translatedText;
 	}
 
 	/**
@@ -319,6 +480,25 @@ export class TranslationService {
 	 */
 	getCacheStats() {
 		return this.cache.getStats();
+	}
+
+	/**
+	 * 获取可用的翻译提供商
+	 */
+	getAvailableProviders(): string[] {
+		return this.providerPriority.filter(provider => {
+			const config = TRANSLATION_PROVIDERS[provider as keyof typeof TRANSLATION_PROVIDERS];
+			if (!config.requiresKey) return true;
+			
+			// 检查是否有API Key
+			if (provider === 'microsoft') {
+				return !!import.meta.env.VITE_MICROSOFT_TRANSLATOR_KEY;
+			}
+			if (provider === 'google') {
+				return !!import.meta.env.VITE_GOOGLE_TRANSLATE_KEY;
+			}
+			return false;
+		});
 	}
 }
 
@@ -336,3 +516,6 @@ export async function translateBatch(
 ): Promise<BatchTranslationResult> {
 	return translationService.translateBatch(texts, options);
 }
+
+// 导出提供商配置
+export { TRANSLATION_PROVIDERS };

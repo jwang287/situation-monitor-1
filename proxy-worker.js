@@ -22,7 +22,15 @@ const ALLOWED_DOMAINS = [
   'news.google.com',
   'rss.cnn.com',
   'feeds.bbci.co.uk',
-  'api.mymemory.translated.net'
+  'api.mymemory.translated.net',
+  // 微软翻译API
+  'api.cognitive.microsofttranslator.com',
+  // 谷歌翻译API
+  'translation.googleapis.com',
+  // LibreTranslate (免费开源翻译API)
+  'libretranslate.de',
+  'libretranslate.com',
+  'translate.argosopentech.com'
 ];
 
 // 检查域名是否在白名单中
@@ -45,7 +53,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, Ocp-Apim-Subscription-Key, Ocp-Apim-Subscription-Region',
           'Access-Control-Max-Age': '86400',
         },
       });
@@ -118,13 +126,27 @@ export default {
     // 转发请求
     try {
       console.log('Fetching:', decodedUrl);
+      
+      // 复制原始请求的headers
+      const requestHeaders = new Headers(request.headers);
+      
+      // 移除可能导致问题的headers
+      requestHeaders.delete('host');
+      requestHeaders.delete('origin');
+      requestHeaders.delete('referer');
+      
+      // 设置默认headers
+      if (!requestHeaders.has('User-Agent')) {
+        requestHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+      }
+      if (!requestHeaders.has('Accept')) {
+        requestHeaders.set('Accept', 'application/json, text/plain, */*');
+      }
+
       const response = await fetch(decodedUrl, {
         method: request.method,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
+        headers: requestHeaders,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
       });
 
       console.log('Response status:', response.status);
@@ -133,7 +155,7 @@ export default {
       const newHeaders = new Headers(response.headers);
       newHeaders.set('Access-Control-Allow-Origin', '*');
       newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Ocp-Apim-Subscription-Key, Ocp-Apim-Subscription-Region');
 
       return new Response(response.body, {
         status: response.status,
