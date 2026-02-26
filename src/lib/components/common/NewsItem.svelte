@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { NewsItem } from '$lib/types';
 	import { timeAgo } from '$lib/utils';
+	import BilingualText from './BilingualText.svelte';
+	import { settings } from '$lib/stores/settings';
 
 	interface Props {
 		item: NewsItem;
@@ -30,11 +32,13 @@
 	{/if}
 
 	<a class="item-title" href={item.link} target="_blank" rel="noopener noreferrer">
-		{item.title}
+		<BilingualText text={item.title} enableTranslation={$settings.enableTranslation} />
 	</a>
 
 	{#if showDescription && item.description}
-		<p class="item-description">{item.description}</p>
+		<p class="item-description">
+			<BilingualText text={item.description} enableTranslation={$settings.enableTranslation} />
+		</p>
 	{/if}
 
 	<div class="item-meta">

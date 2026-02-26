@@ -17,7 +17,8 @@ import {
 const STORAGE_KEYS = {
 	panels: 'situationMonitorPanels',
 	order: 'panelOrder',
-	sizes: 'panelSizes'
+	sizes: 'panelSizes',
+	translation: 'situationMonitorTranslation'
 } as const;
 
 // Types
@@ -27,7 +28,11 @@ export interface PanelSettings {
 	sizes: Record<PanelId, { width?: number; height?: number }>;
 }
 
-export interface SettingsState extends PanelSettings {
+export interface TranslationSettings {
+	enableTranslation: boolean;
+}
+
+export interface SettingsState extends PanelSettings, TranslationSettings {
 	initialized: boolean;
 }
 
@@ -43,18 +48,20 @@ function getDefaultSettings(): PanelSettings {
 }
 
 // Load from localStorage
-function loadFromStorage(): Partial<PanelSettings> {
+function loadFromStorage(): Partial<PanelSettings & TranslationSettings> {
 	if (!browser) return {};
 
 	try {
 		const panels = localStorage.getItem(STORAGE_KEYS.panels);
 		const order = localStorage.getItem(STORAGE_KEYS.order);
 		const sizes = localStorage.getItem(STORAGE_KEYS.sizes);
+		const translation = localStorage.getItem(STORAGE_KEYS.translation);
 
 		return {
 			enabled: panels ? JSON.parse(panels) : undefined,
 			order: order ? JSON.parse(order) : undefined,
-			sizes: sizes ? JSON.parse(sizes) : undefined
+			sizes: sizes ? JSON.parse(sizes) : undefined,
+			enableTranslation: translation ? JSON.parse(translation) : undefined
 		};
 	} catch (e) {
 		console.warn('Failed to load settings from localStorage:', e);
@@ -82,6 +89,7 @@ function createSettingsStore() {
 		enabled: { ...defaults.enabled, ...saved.enabled },
 		order: saved.order ?? defaults.order,
 		sizes: { ...defaults.sizes, ...saved.sizes },
+		enableTranslation: saved.enableTranslation ?? false,
 		initialized: false
 	};
 
@@ -186,6 +194,27 @@ function createSettingsStore() {
 		},
 
 		/**
+		 * Toggle translation feature
+		 */
+		toggleTranslation() {
+			update((state) => {
+				const newValue = !state.enableTranslation;
+				saveToStorage('translation', newValue);
+				return { ...state, enableTranslation: newValue };
+			});
+		},
+
+		/**
+		 * Set translation enabled state
+		 */
+		setTranslationEnabled(enabled: boolean) {
+			update((state) => {
+				saveToStorage('translation', enabled);
+				return { ...state, enableTranslation: enabled };
+			});
+		},
+
+		/**
 		 * Reset all settings to defaults
 		 */
 		reset() {
@@ -194,8 +223,9 @@ function createSettingsStore() {
 				localStorage.removeItem(STORAGE_KEYS.panels);
 				localStorage.removeItem(STORAGE_KEYS.order);
 				localStorage.removeItem(STORAGE_KEYS.sizes);
+				localStorage.removeItem(STORAGE_KEYS.translation);
 			}
-			set({ ...defaults, initialized: true });
+			set({ ...defaults, enableTranslation: false, initialized: true });
 		},
 
 		/**

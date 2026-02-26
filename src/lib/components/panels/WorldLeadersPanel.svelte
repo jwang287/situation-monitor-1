@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Panel } from '$lib/components/common';
+	import BilingualText from '$lib/components/common/BilingualText.svelte';
+	import { settings } from '$lib/stores/settings';
 	import type { WorldLeader } from '$lib/types';
 
 	interface Props {
@@ -55,7 +57,10 @@
 						<div class="leader-news">
 							{#each latestNews as news}
 								<a href={news.link} target="_blank" class="leader-news-item" title={news.title}>
-									{news.title.length > 60 ? news.title.substring(0, 60) + '...' : news.title}
+									<BilingualText
+										text={news.title.length > 60 ? news.title.substring(0, 60) + '...' : news.title}
+										enableTranslation={$settings.enableTranslation}
+									/>
 								</a>
 							{/each}
 						</div>

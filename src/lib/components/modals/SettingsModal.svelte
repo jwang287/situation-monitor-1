@@ -15,6 +15,10 @@
 		settings.togglePanel(panelId);
 	}
 
+	function handleToggleTranslation() {
+		settings.toggleTranslation();
+	}
+
 	function handleResetPanels() {
 		settings.reset();
 	}
@@ -22,6 +26,23 @@
 
 <Modal {open} title="设置" {onClose}>
 	<div class="settings-sections">
+		<section class="settings-section">
+			<h3 class="section-title">功能设置</h3>
+			<p class="section-desc">启用或禁用额外功能</p>
+
+			<div class="feature-toggles">
+				<label class="feature-toggle" class:enabled={$settings.enableTranslation}>
+					<input
+						type="checkbox"
+						checked={$settings.enableTranslation}
+						onchange={() => handleToggleTranslation()}
+					/>
+					<span class="feature-name">翻译功能</span>
+					<span class="feature-desc">启用内容自动翻译</span>
+				</label>
+			</div>
+		</section>
+
 		<section class="settings-section">
 			<h3 class="section-title">启用的面板</h3>
 			<p class="section-desc">开关面板以自定义您的仪表板</p>
@@ -80,6 +101,49 @@
 		font-size: 0.65rem;
 		color: var(--text-muted);
 		margin: 0;
+	}
+
+	.feature-toggles {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.feature-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.feature-toggle:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.feature-toggle.enabled {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.1);
+	}
+
+	.feature-toggle input {
+		accent-color: var(--accent);
+	}
+
+	.feature-name {
+		font-size: 0.7rem;
+		color: var(--text-primary);
+	}
+
+	.feature-desc {
+		flex: 1;
+		font-size: 0.6rem;
+		color: var(--text-muted);
+		text-align: right;
 	}
 
 	.panels-grid {
