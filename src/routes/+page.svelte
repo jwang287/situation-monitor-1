@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Header, Dashboard } from '$lib/components/layout';
 	import { SettingsModal, MonitorFormModal, OnboardingModal } from '$lib/components/modals';
+	import { VersionBadge } from '$lib/components/common';
 	import {
 		NewsPanel,
 		MarketsPanel,
@@ -456,6 +457,7 @@
 		editMonitor={editingMonitor}
 	/>
 	<OnboardingModal open={onboardingOpen} onSelectPreset={handleSelectPreset} />
+	<VersionBadge />
 </div>
 
 <style>

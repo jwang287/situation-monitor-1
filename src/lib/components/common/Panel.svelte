@@ -92,10 +92,16 @@
 	.panel {
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 4px;
+		border-radius: 12px;
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
+		transition: all 0.15s ease;
+	}
+
+	.panel:hover {
+		border-color: var(--border-light);
+		box-shadow: 0 0 20px var(--accent-glow);
 	}
 
 	.panel.draggable {
@@ -110,10 +116,10 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.5rem 0.75rem;
+		padding: 0.75rem 1rem;
 		background: var(--surface);
 		border-bottom: 1px solid var(--border);
-		min-height: 2rem;
+		min-height: 2.5rem;
 	}
 
 	.panel-title-row {
@@ -123,7 +129,7 @@
 	}
 
 	.panel-title {
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -132,19 +138,19 @@
 	}
 
 	.panel-count {
-		font-size: 0.65rem;
+		font-size: 0.7rem;
 		font-weight: 500;
 		color: var(--accent);
-		background: rgba(var(--accent-rgb), 0.1);
-		padding: 0.1rem 0.4rem;
-		border-radius: 3px;
+		background: rgba(var(--accent-rgb), 0.15);
+		padding: 0.15rem 0.5rem;
+		border-radius: 4px;
 	}
 
 	.panel-status {
-		font-size: 0.6rem;
+		font-size: 0.65rem;
 		font-weight: 600;
-		padding: 0.1rem 0.4rem;
-		border-radius: 3px;
+		padding: 0.15rem 0.5rem;
+		border-radius: 4px;
 		text-transform: uppercase;
 	}
 
@@ -154,22 +160,22 @@
 	}
 
 	.panel-status.elevated {
-		color: #ffa500;
-		background: rgba(255, 165, 0, 0.15);
+		color: var(--yellow);
+		background: rgba(245, 158, 11, 0.15);
 	}
 
 	.panel-status.critical {
-		color: #ff4444;
-		background: rgba(255, 68, 68, 0.15);
+		color: var(--red);
+		background: rgba(239, 68, 68, 0.15);
 	}
 
 	.panel-loading {
-		width: 12px;
-		height: 12px;
+		width: 14px;
+		height: 14px;
 		border: 2px solid var(--border);
 		border-top-color: var(--accent);
 		border-radius: 50%;
-		animation: spin 1s linear infinite;
+		animation: spin 0.8s linear infinite;
 	}
 
 	@keyframes spin {
@@ -181,7 +187,7 @@
 	.panel-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.5rem;
 	}
 
 	.panel-collapse-btn {
@@ -190,18 +196,19 @@
 		color: var(--text-secondary);
 		cursor: pointer;
 		padding: 0.25rem;
-		font-size: 0.5rem;
+		font-size: 0.6rem;
 		line-height: 1;
+		transition: color 0.15s ease;
 	}
 
 	.panel-collapse-btn:hover {
-		color: var(--text-primary);
+		color: var(--accent);
 	}
 
 	.panel-content {
 		flex: 1;
 		overflow-y: auto;
-		padding: 0.5rem;
+		padding: 0.75rem;
 	}
 
 	.panel-content.hidden {
@@ -212,13 +219,6 @@
 		color: var(--danger);
 		text-align: center;
 		padding: 1rem;
-		font-size: 0.7rem;
-	}
-
-	.loading-msg {
-		color: var(--text-secondary);
-		text-align: center;
-		padding: 1rem;
-		font-size: 0.7rem;
+		font-size: 0.75rem;
 	}
 </style>
