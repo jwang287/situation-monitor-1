@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
-	import { settings, type TranslationProvider } from '$lib/stores';
+	import { settings, type TranslationProvider, type NewsRegion } from '$lib/stores';
 	import { PANELS, type PanelId } from '$lib/config';
 
 	interface Props {
@@ -33,6 +33,10 @@
 		settings.setGoogleApiKey(target.value);
 	}
 
+	function handleNewsRegionChange(region: NewsRegion) {
+		settings.setNewsRegion(region);
+	}
+
 	function handleResetPanels() {
 		settings.reset();
 	}
@@ -42,6 +46,11 @@
 		{ value: 'microsoft', label: '微软翻译', desc: '需要API Key，质量高，每月200万字符免费' },
 		{ value: 'google', label: '谷歌翻译', desc: '需要API Key，质量最高' },
 		{ value: 'libretranslate', label: 'LibreTranslate', desc: '免费开源，无需API Key，质量一般' }
+	];
+
+	const regionOptions: { value: NewsRegion; label: string; desc: string }[] = [
+		{ value: 'international', label: '国际新闻', desc: '使用GDELT获取全球英文新闻' },
+		{ value: 'china', label: '中国新闻', desc: '使用国内新闻源获取中文新闻' }
 	];
 </script>
 
@@ -137,6 +146,29 @@
 					{/if}
 				</div>
 			{/if}
+		</section>
+
+		<section class="settings-section">
+			<h3 class="section-title">新闻地区</h3>
+			<p class="section-desc">选择新闻来源地区</p>
+
+			<div class="region-selection">
+				{#each regionOptions as option}
+					<label class="region-option" class:selected={$settings.newsRegion === option.value}>
+						<input
+							type="radio"
+							name="newsRegion"
+							value={option.value}
+							checked={$settings.newsRegion === option.value}
+							onchange={() => handleNewsRegionChange(option.value)}
+						/>
+						<div class="region-info">
+							<span class="region-name">{option.label}</span>
+							<span class="region-desc">{option.desc}</span>
+						</div>
+					</label>
+				{/each}
+			</div>
 		</section>
 
 		<section class="settings-section">
@@ -317,6 +349,55 @@
 	}
 
 	.provider-desc {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+	}
+
+	.region-selection {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.region-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid var(--border);
+		border-radius: 4px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.region-option:hover {
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.region-option.selected {
+		border-color: var(--accent);
+		background: rgba(var(--accent-rgb), 0.1);
+	}
+
+	.region-option input {
+		margin-top: 0.1rem;
+		accent-color: var(--accent);
+	}
+
+	.region-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.region-name {
+		font-size: 0.7rem;
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.region-desc {
 		font-size: 0.6rem;
 		color: var(--text-muted);
 	}

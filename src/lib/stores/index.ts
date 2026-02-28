@@ -9,7 +9,9 @@ export {
 	disabledPanels,
 	draggablePanels,
 	type PanelSettings,
-	type SettingsState
+	type SettingsState,
+	type TranslationProvider,
+	type NewsRegion
 } from './settings';
 
 // Monitors store

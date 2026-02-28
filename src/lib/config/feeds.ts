@@ -56,6 +56,37 @@ export const FEEDS: Record<NewsCategory, FeedSource[]> = {
 	]
 };
 
+export const CHINA_FEEDS: Record<NewsCategory, FeedSource[]> = {
+	politics: [
+		{ name: '环球军事', url: 'https://mil.huanqiu.com/rss/www.xml' },
+		{ name: '新浪军事', url: 'https://mil.news.sina.com.cn/rss/index.xml' },
+		{ name: '凤凰军事', url: 'http://www.phoenixmilitary.com.cn/rss' }
+	],
+	tech: [
+		{ name: '36氪', url: 'https://www.36kr.com/feed/' },
+		{ name: '科技日报', url: 'http://www.stdaily.com/kjrb/www/08/1008/index.xml' },
+		{ name: '极客公园', url: 'https://www.geekpark.net/feed' }
+	],
+	finance: [
+		{ name: '新浪财经', url: 'https://finance.sina.com.cn/stock/roll/03.xml' },
+		{ name: '东方财富', url: 'https://news.eastmoney.com/kzzs.xml' },
+		{ name: '凤凰财经', url: 'https://finance.ifeng.com/rss/index.xml' }
+	],
+	gov: [
+		{ name: '新华网', url: 'https://www.xinhuanet.com/politics/news_politics.xml' },
+		{ name: '人民网', url: 'http://politics.people.com.cn/rss/7363.xml' },
+		{ name: '中国政府网', url: 'http://www.gov.cn/rss/gov focus.xml' }
+	],
+	ai: [
+		{ name: '人工智能网', url: 'https://www.cnaiplus.com/feed/' },
+		{ name: '新智元', url: 'https://www.xinzhiyuan.cn/feed' }
+	],
+	intel: [
+		{ name: '参考消息', url: 'https://www.cankaoxiaoxi.com/feed/' },
+		{ name: '环球时报', url: 'https://www.huanqiu.com/rss/www.xml' }
+	]
+};
+
 export const INTEL_SOURCES: IntelSource[] = [
 	{
 		name: 'CSIS',

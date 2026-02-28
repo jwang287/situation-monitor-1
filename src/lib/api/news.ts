@@ -2,11 +2,13 @@
  * News API - Fetch news from GDELT and other sources
  */
 
-import { FEEDS } from '$lib/config/feeds';
+import { FEEDS, CHINA_FEEDS } from '$lib/config/feeds';
 import type { NewsItem, NewsCategory } from '$lib/types';
 import { containsAlertKeyword, detectRegion, detectTopics } from '$lib/config/keywords';
 import { fetchWithProxy, API_DELAYS, logger, USE_MOCK_DATA } from '$lib/config/api';
 import { mockNewsData } from '$lib/data/mock';
+import { get } from 'svelte/store';
+import { settings } from '$lib/stores';
 
 /**
  * Simple hash function to generate unique IDs from URLs
@@ -91,6 +93,20 @@ function transformGdeltArticle(
  * Fetch news for a specific category using GDELT via proxy
  */
 export async function fetchCategoryNews(category: NewsCategory): Promise<NewsItem[]> {
+	const currentSettings = get(settings);
+	const isChina = currentSettings.newsRegion === 'china';
+
+	if (isChina) {
+		return fetchChinaNews(category);
+	}
+
+	return fetchInternationalNews(category);
+}
+
+/**
+ * Fetch international news using GDELT
+ */
+async function fetchInternationalNews(category: NewsCategory): Promise<NewsItem[]> {
 	// Build query from category keywords (GDELT requires OR queries in parentheses)
 	const categoryQueries: Record<NewsCategory, string> = {
 		politics: '(politics OR government OR election OR congress)',
@@ -164,6 +180,98 @@ export async function fetchCategoryNews(category: NewsCategory): Promise<NewsIte
 		}
 		return [];
 	}
+}
+
+/**
+ * Fetch domestic (China) news using RSS feeds
+ */
+async function fetchChinaNews(category: NewsCategory): Promise<NewsItem[]> {
+	try {
+		const chinaFeeds = CHINA_FEEDS[category] || [];
+		
+		if (chinaFeeds.length === 0) {
+			logger.warn('News API', `No China feeds configured for category: ${category}`);
+			return [];
+		}
+
+		logger.log('News API', `Fetching China ${category} from ${chinaFeeds.length} sources`);
+
+		const allArticles: NewsItem[] = [];
+
+		for (const feed of chinaFeeds) {
+			try {
+				const response = await fetchWithProxy(feed.url);
+				
+				if (!response.ok) {
+					logger.warn('News API', `Failed to fetch ${feed.name}: ${response.status}`);
+					continue;
+				}
+
+				const contentType = response.headers.get('content-type');
+				const text = await response.text();
+
+				if (!contentType?.includes('xml') && !text.includes('<?xml')) {
+					logger.warn('News API', `Non-XML response from ${feed.name}`);
+					continue;
+				}
+
+				const articles = parseRssItems(text, category, feed.name);
+				allArticles.push(...articles);
+			} catch (error) {
+				logger.warn('News API', `Error fetching ${feed.name}:`, error);
+			}
+		}
+
+		logger.log('News API', `China ${category}: found ${allArticles.length} articles`);
+		return allArticles;
+	} catch (error) {
+		logger.error('News API', `Error fetching China ${category}:`, error);
+		return [];
+	}
+}
+
+/**
+ * Parse RSS XML to NewsItem array
+ */
+function parseRssItems(xml: string, category: NewsCategory, source: string): NewsItem[] {
+	const items: NewsItem[] = [];
+	const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
+	const titleRegex = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/gi;
+	const linkRegex = /<link><!\[CDATA\[(.*?)\]\]><\/link>|<link>(.*?)<\/link>/gi;
+	const dateRegex = /<pubDate>(.*?)<\/pubDate>|<dc:date>(.*?)<\/dc:date>/gi;
+
+	let match;
+	while ((match = itemRegex.exec(xml)) !== null && items.length < 10) {
+		const itemXml = match[1];
+		
+		const titleMatch = titleRegex.exec(itemXml);
+		const linkMatch = linkRegex.exec(itemXml);
+		const dateMatch = dateRegex.exec(itemXml);
+
+		const title = titleMatch?.[1] || titleMatch?.[2] || '';
+		const link = linkMatch?.[1] || linkMatch?.[2] || '';
+		const pubDate = dateMatch?.[1] || dateMatch?.[2] || new Date().toISOString();
+
+		if (title && link) {
+			const urlHash = hashCode(link);
+			const uniqueId = `china-${category}-${urlHash}-${items.length}`;
+			
+			items.push({
+				id: uniqueId,
+				title: title.trim(),
+				link,
+				pubDate,
+				timestamp: new Date(pubDate).getTime(),
+				source,
+				category,
+				isAlert: containsAlertKeyword(title).length > 0,
+				region: 'china',
+				topics: []
+			});
+		}
+	}
+
+	return items;
 }
 
 /** All news categories in fetch order */

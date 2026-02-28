@@ -21,11 +21,15 @@ const STORAGE_KEYS = {
 	translation: 'situationMonitorTranslation',
 	translationProvider: 'situationMonitorTranslationProvider',
 	microsoftKey: 'situationMonitorMicrosoftKey',
-	googleKey: 'situationMonitorGoogleKey'
+	googleKey: 'situationMonitorGoogleKey',
+	newsRegion: 'situationMonitorNewsRegion'
 } as const;
 
 // Translation provider types
 export type TranslationProvider = 'microsoft' | 'google' | 'libretranslate' | 'auto';
+
+// News region types
+export type NewsRegion = 'china' | 'international';
 
 // Types
 export interface PanelSettings {
@@ -39,6 +43,7 @@ export interface TranslationSettings {
 	translationProvider: TranslationProvider;
 	microsoftApiKey: string;
 	googleApiKey: string;
+	newsRegion: NewsRegion;
 }
 
 export interface SettingsState extends PanelSettings, TranslationSettings {
@@ -68,6 +73,7 @@ function loadFromStorage(): Partial<PanelSettings & TranslationSettings> {
 		const translationProvider = localStorage.getItem(STORAGE_KEYS.translationProvider);
 		const microsoftKey = localStorage.getItem(STORAGE_KEYS.microsoftKey);
 		const googleKey = localStorage.getItem(STORAGE_KEYS.googleKey);
+		const newsRegion = localStorage.getItem(STORAGE_KEYS.newsRegion);
 
 		return {
 			enabled: panels ? JSON.parse(panels) : undefined,
@@ -76,7 +82,8 @@ function loadFromStorage(): Partial<PanelSettings & TranslationSettings> {
 			enableTranslation: translation ? JSON.parse(translation) : undefined,
 			translationProvider: translationProvider as TranslationProvider || undefined,
 			microsoftApiKey: microsoftKey || '',
-			googleApiKey: googleKey || ''
+			googleApiKey: googleKey || '',
+			newsRegion: (newsRegion as NewsRegion) || 'international'
 		};
 	} catch (e) {
 		console.warn('Failed to load settings from localStorage:', e);
@@ -108,6 +115,7 @@ function createSettingsStore() {
 		translationProvider: saved.translationProvider ?? 'auto',
 		microsoftApiKey: saved.microsoftApiKey ?? '',
 		googleApiKey: saved.googleApiKey ?? '',
+		newsRegion: saved.newsRegion ?? 'international',
 		initialized: false
 	};
 
@@ -263,6 +271,16 @@ function createSettingsStore() {
 		},
 
 		/**
+		 * Set news region (china or international)
+		 */
+		setNewsRegion(region: NewsRegion) {
+			update((state) => {
+				saveToStorage('newsRegion', region);
+				return { ...state, newsRegion: region };
+			});
+		},
+
+		/**
 		 * Reset all settings to defaults
 		 */
 		reset() {
@@ -275,6 +293,7 @@ function createSettingsStore() {
 				localStorage.removeItem(STORAGE_KEYS.translationProvider);
 				localStorage.removeItem(STORAGE_KEYS.microsoftKey);
 				localStorage.removeItem(STORAGE_KEYS.googleKey);
+				localStorage.removeItem(STORAGE_KEYS.newsRegion);
 			}
 			set({
 				...defaults,
@@ -282,6 +301,7 @@ function createSettingsStore() {
 				translationProvider: 'auto',
 				microsoftApiKey: '',
 				googleApiKey: '',
+				newsRegion: 'international',
 				initialized: true
 			});
 		},
