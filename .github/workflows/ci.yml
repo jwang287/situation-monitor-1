@@ -113,7 +113,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.test-group }}
+          name: test-results-unit-tests
           path: |
             coverage/
             test-results/
