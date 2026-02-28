@@ -1,0 +1,351 @@
+# CI/CD Workflow for Situation Monitor
+# This workflow runs on every push and pull request to ensure code quality
+
+name: CI - Test & Build
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+# Environment variables
+env:
+  NODE_VERSION: '20'
+  CI: true
+
+# Concurrency configuration to prevent redundant runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: Code Quality Checks
+  lint-and-format:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 📝 Check code formatting (Prettier)
+        run: npm run format -- --check
+        continue-on-error: true
+
+      - name: 🔍 Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: 🔎 Run Svelte Check
+        run: npm run check
+        continue-on-error: true
+
+      - name: 📊 Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: |
+            .eslintcache
+            .svelte-check/
+          retention-days: 7
+
+  # Job 2: Unit Tests
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint-and-format
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-group: [api, services, stores, analysis, config, utils]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run Unit Tests - ${{ matrix.test-group }}
+        run: |
+          case "${{ matrix.test-group }}" in
+            api)
+              npm run test:unit -- src/lib/api/
+              ;;
+            services)
+              npm run test:unit -- src/lib/services/
+              ;;
+            stores)
+              npm run test:unit -- src/lib/stores/
+              ;;
+            analysis)
+              npm run test:unit -- src/lib/analysis/
+              ;;
+            config)
+              npm run test:unit -- src/lib/config/
+              ;;
+            utils)
+              npm run test:unit -- src/lib/utils/
+              ;;
+          esac
+        continue-on-error: true
+
+      - name: 📊 Generate coverage report
+        run: npm run test:unit -- --coverage
+        continue-on-error: true
+
+      - name: 📤 Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: 📊 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.test-group }}
+          path: |
+            coverage/
+            test-results/
+          retention-days: 7
+
+  # Job 3: Build Application
+  build:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: unit-tests
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗️ Build application
+        env:
+          BASE_PATH: '/situation-monitor-1'
+        run: npm run build
+
+      - name: 📋 Verify build output
+        run: |
+          echo "=== Build Directory Structure ==="
+          ls -la build/
+          echo ""
+          echo "=== Checking for index.html ==="
+          test -f build/index.html && echo "✅ index.html found" || echo "❌ index.html missing"
+          echo ""
+          echo "=== Build Size ==="
+          du -sh build/
+          echo ""
+          echo "=== File Count ==="
+          find build -type f | wc -l
+
+      - name: 📤 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: build/
+          retention-days: 7
+
+  # Job 4: E2E Tests (Optional - requires build)
+  e2e-tests:
+    name: 🎭 E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🎭 Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 🏗️ Build application for E2E
+        env:
+          BASE_PATH: '/situation-monitor-1'
+        run: npm run build
+
+      - name: 🧪 Run E2E tests
+        run: npm run test:e2e
+        continue-on-error: true
+
+      - name: 📊 Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  # Job 5: Security Audit
+  security-audit:
+    name: 🔒 Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint-and-format
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔒 Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+      - name: 🔍 Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+        continue-on-error: true
+
+      - name: 🔨 Autobuild for CodeQL
+        uses: github/codeql-action/autobuild@v3
+        continue-on-error: true
+
+      - name: 📊 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+
+  # Job 6: Notification
+  notify:
+    name: 📢 Notify Results
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, unit-tests, build, e2e-tests, security-audit]
+    if: always()
+
+    steps:
+      - name: 📊 Summarize Results
+        run: |
+          echo "=== CI/CD Pipeline Summary ==="
+          echo "Lint & Format: ${{ needs.lint-and-format.result }}"
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "E2E Tests: ${{ needs.e2e-tests.result }}"
+          echo "Security Audit: ${{ needs.security-audit.result }}"
+          echo ""
+          echo "Overall Status: ${{ job.status }}"
+
+      - name: 📝 Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('CI/CD Pipeline Results');
+            });
+
+            const body = `## 🚀 CI/CD Pipeline Results
+
+            | Job | Status |
+            |-----|--------|
+            | 🔍 Code Quality | ${{ needs.lint-and-format.result }} |
+            | 🧪 Unit Tests | ${{ needs.unit-tests.result }} |
+            | 🏗️ Build | ${{ needs.build.result }} |
+            | 🎭 E2E Tests | ${{ needs.e2e-tests.result }} |
+            | 🔒 Security Audit | ${{ needs.security-audit.result }} |
+
+            **Overall Status**: ${{ job.status }}
+
+            <details>
+            <summary>📊 View Details</summary>
+
+            - Commit: ${{ github.sha }}
+            - Branch: ${{ github.ref }}
+            - Actor: ${{ github.actor }}
+            - Workflow Run: ${{ github.run_id }}
+            </details>
+            `;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+      - name: ❌ Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ CI/CD Pipeline failed!"
+          echo "Please check the logs for details."
+          exit 1
