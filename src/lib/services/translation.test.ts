@@ -135,7 +135,8 @@ describe('TranslationService', () => {
 		await service.translate('Hello', options);
 
 		const fetchCall = fetchMock.mock.calls[0][0];
-		expect(fetchCall).toContain('libretranslate.de/translate');
+		// URL is proxied through CORS proxy
+		expect(fetchCall).toContain('libretranslate');
 	});
 
 		it('should disable cache when useCache is false', async () => {
@@ -351,7 +352,8 @@ describe('TranslationService', () => {
 			await service.translate('Hello World');
 
 			const fetchCall = fetchMock.mock.calls[0][0];
-			expect(fetchCall).toContain('libretranslate.de/translate');
+			// URL is proxied through CORS proxy, check for libretranslate in the URL
+			expect(fetchCall).toContain('libretranslate');
 		});
 
 		it('should handle special characters in text', async () => {
@@ -365,8 +367,8 @@ describe('TranslationService', () => {
 			await service.translate('Hello & World!');
 
 			const fetchCall = fetchMock.mock.calls[0][0];
-			// 检查请求体是否包含正确的文本
-			expect(fetchCall).toContain('libretranslate.de/translate');
+			// URL is proxied through CORS proxy
+			expect(fetchCall).toContain('libretranslate');
 		});
 	});
 
@@ -405,8 +407,7 @@ describe('TranslationService', () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({
-					responseStatus: 200,
-					responseData: { translatedText: '长文本翻译结果' }
+					translatedText: '长文本翻译结果'
 				})
 			});
 
@@ -419,8 +420,7 @@ describe('TranslationService', () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({
-					responseStatus: 200,
-					responseData: { translatedText: '你好。今天天气很好。' }
+					translatedText: '你好。今天天气很好。'
 				})
 			});
 
@@ -448,8 +448,7 @@ describe('TranslationService', () => {
 			fetchMock.mockResolvedValue({
 				ok: true,
 				json: async () => ({
-					responseStatus: 200,
-					responseData: { translatedText: '你好' }
+					translatedText: '你好'
 				})
 			});
 

@@ -306,7 +306,8 @@ describe('Fed Store', () => {
 			expect(state.items.length).toBe(100);
 
 			const videos = get((await import('./fed')).fedVideos);
-			expect(videos.length).toBe(Math.floor(100 / 3));
+		// 100 items, every 3rd has video (0, 3, 6, ... 99) = 34 videos
+		expect(videos.length).toBe(34);
 		});
 
 		it('should handle special characters in news titles', async () => {

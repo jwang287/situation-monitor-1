@@ -43,7 +43,7 @@ describe('ServiceRegistry', () => {
 
 	describe('getCorsProxies', () => {
 		it('should return list of CORS proxies', () => {
-		const proxies = registry.getCorsProxies();
+		const proxies = ServiceRegistry.getCorsProxies();
 		expect(proxies).toBeInstanceOf(Array);
 		expect(proxies.length).toBeGreaterThan(0);
 		expect(proxies[0]).toContain('workers.dev');
