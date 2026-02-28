@@ -78,11 +78,6 @@ jobs:
     timeout-minutes: 15
     needs: lint-and-format
 
-    strategy:
-      fail-fast: false
-      matrix:
-        test-group: [api, services, stores, analysis, config, utils]
-
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
@@ -96,28 +91,8 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🧪 Run Unit Tests - ${{ matrix.test-group }}
-        run: |
-          case "${{ matrix.test-group }}" in
-            api)
-              npm run test:unit -- src/lib/api/
-              ;;
-            services)
-              npm run test:unit -- src/lib/services/
-              ;;
-            stores)
-              npm run test:unit -- src/lib/stores/
-              ;;
-            analysis)
-              npm run test:unit -- src/lib/analysis/
-              ;;
-            config)
-              npm run test:unit -- src/lib/config/
-              ;;
-            utils)
-              npm run test:unit -- src/lib/utils/
-              ;;
-          esac
+      - name: 🧪 Run Unit Tests
+        run: npm run test:unit
         continue-on-error: true
 
       - name: 📊 Generate coverage report
