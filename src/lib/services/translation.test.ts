@@ -381,4 +381,144 @@ describe('TranslationService', () => {
 			expect(fetchCall).toContain(encodeURIComponent('Hello & World!'));
 		});
 	});
+
+	describe('rate limiting and quota', () => {
+		it('should handle rate limit error (429)', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 429,
+					responseDetails: 'Rate limit exceeded. Wait for 10 seconds'
+				})
+			});
+
+			const originalText = 'Hello World';
+			const result = await service.translate(originalText);
+			expect(result).toBe(originalText);
+		});
+
+		it('should handle quota exceeded error', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 403,
+					responseDetails: 'Daily quota exceeded'
+				})
+			});
+
+			const originalText = 'Hello World';
+			const result = await service.translate(originalText);
+			expect(result).toBe(originalText);
+		});
+	});
+
+	describe('long text handling', () => {
+		it('should handle very long text (500+ chars)', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 200,
+					responseData: { translatedText: '长文本翻译结果' }
+				})
+			});
+
+			const longText = 'A'.repeat(600);
+			const result = await service.translate(longText);
+			expect(result).toBe('长文本翻译结果');
+		});
+
+		it('should handle text with multiple sentences', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 200,
+					responseData: { translatedText: '你好。今天天气很好。' }
+				})
+			});
+
+			const result = await service.translate('Hello. The weather is nice today.');
+			expect(result).toBe('你好。今天天气很好。');
+		});
+	});
+
+	describe('language detection', () => {
+		it('should skip translation for already Chinese text', async () => {
+			const chineseText = '这是一个中文句子';
+			const result = await service.translate(chineseText);
+			expect(result).toBe(chineseText);
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+
+		it('should skip translation for mixed Chinese-English', async () => {
+			const mixedText = 'Hello 世界';
+			const result = await service.translate(mixedText);
+			expect(result).toBe(mixedText);
+			expect(fetchMock).not.toHaveBeenCalled();
+		});
+
+		it('should translate pure English text', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 200,
+					responseData: { translatedText: '你好' }
+				})
+			});
+
+			const result = await service.translate('Hello');
+			expect(result).toBe('你好');
+			expect(fetchMock).toHaveBeenCalled();
+		});
+	});
+
+	describe('concurrent batch requests', () => {
+		it('should handle concurrent batch translations', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 200,
+					responseData: { translatedText: '翻译结果' }
+				})
+			});
+
+			const batches = [
+				service.translateBatch(['Text 1', 'Text 2']),
+				service.translateBatch(['Text 3', 'Text 4']),
+				service.translateBatch(['Text 5', 'Text 6'])
+			];
+
+			const results = await Promise.all(batches);
+			expect(results).toHaveLength(3);
+			results.forEach((result) => {
+				expect(result.results.size).toBe(2);
+			});
+		});
+	});
+
+	describe('cache persistence', () => {
+		it('should persist cache to localStorage', async () => {
+			fetchMock.mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					responseStatus: 200,
+					responseData: { translatedText: '你好' }
+				})
+			});
+
+			await service.translate('Hello');
+			// Cache should be persisted via localStorage.setItem
+			expect(localStorage.setItem).toHaveBeenCalled();
+		});
+
+		it('should load cache from localStorage on init', async () => {
+			const cachedData = {
+				en: { zh: { hello: { text: '你好', timestamp: Date.now() } } }
+			};
+			localStorage.getItem = vi.fn(() => JSON.stringify(cachedData));
+
+			const newService = new TranslationService();
+			// Should load cached data from localStorage
+			expect(localStorage.getItem).toHaveBeenCalledWith('translationCache');
+		});
+	});
 });

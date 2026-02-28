@@ -241,4 +241,118 @@ describe('News API', () => {
 			expect(result.intel).toBeDefined();
 		});
 	});
+
+	describe('edge cases', () => {
+		it('should handle network timeout', async () => {
+			mockFetch.mockRejectedValue(new Error('Network timeout'));
+
+			const result = await fetchCategoryNews('politics');
+			expect(result).toEqual([]);
+		});
+
+		it('should handle malformed GDELT date', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				text: async () => JSON.stringify({
+					articles: [
+						{
+							title: 'Test',
+							url: 'https://example.com/test',
+							seendate: 'invalid-date',
+							domain: 'example.com'
+						}
+					]
+				})
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result[0].timestamp).toBeDefined();
+		});
+
+		it('should handle articles with missing fields', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				text: async () => JSON.stringify({
+					articles: [
+						{
+							// Missing title
+							url: 'https://example.com/test',
+							seendate: '20251202T120000Z'
+						}
+					]
+				})
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result[0].title).toBe('');
+		});
+
+		it('should handle 429 rate limit error', async () => {
+			const mockResponse = {
+				ok: false,
+				status: 429,
+				statusText: 'Too Many Requests'
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result).toEqual([]);
+		});
+
+		it('should handle 403 forbidden error', async () => {
+			const mockResponse = {
+				ok: false,
+				status: 403,
+				statusText: 'Forbidden'
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result).toEqual([]);
+		});
+
+		it('should handle very large response', async () => {
+			const largeArticles = Array.from({ length: 1000 }, (_, i) => ({
+				title: `Article ${i}`,
+				url: `https://example.com/${i}`,
+				seendate: '20251202T120000Z',
+				domain: 'example.com'
+			}));
+
+			const mockResponse = {
+				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				text: async () => JSON.stringify({ articles: largeArticles })
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result.length).toBe(1000);
+		});
+
+		it('should handle special characters in title', async () => {
+			const mockResponse = {
+				ok: true,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				text: async () => JSON.stringify({
+					articles: [
+						{
+							title: 'News with <script>alert("xss")</script> & "quotes"',
+							url: 'https://example.com/test',
+							seendate: '20251202T120000Z',
+							domain: 'example.com'
+						}
+					]
+				})
+			};
+			mockFetch.mockResolvedValue(mockResponse as Response);
+
+			const result = await fetchCategoryNews('politics');
+			expect(result[0].title).toContain('<script>');
+		});
+	});
 });
