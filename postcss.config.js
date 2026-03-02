@@ -6,14 +6,11 @@ export default {
 		cssnano: process.env.NODE_ENV === 'production'
 			? {
 					preset: [
-						'advanced',
+						'default',
 						{
 							discardComments: {
 								removeAll: true
-							},
-							minifySelectors: true,
-							mergeLonghand: true,
-							normalizeWhitespace: true
+							}
 						}
 					]
 			  }
