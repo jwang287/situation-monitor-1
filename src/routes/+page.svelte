@@ -3,7 +3,6 @@
 	import { Header, Dashboard } from '$lib/components/layout';
 	import { SettingsModal, MonitorFormModal, OnboardingModal } from '$lib/components/modals';
 	import { VersionBadge } from '$lib/components/common';
-	import { initWebVitals } from '$lib/utils/web-vitals';
 	import { browser } from '$app/environment';
 	
 	// 静态导入所有面板组件 (避免 SSR 问题)
@@ -300,11 +299,6 @@
 
 	// Initial load
 	onMount(() => {
-		// 初始化 Web Vitals 监控
-		if (browser) {
-			initWebVitals();
-		}
-		
 		if (!settings.isOnboardingComplete()) {
 			onboardingOpen = true;
 		}
