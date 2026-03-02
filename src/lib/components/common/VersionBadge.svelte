@@ -1,6 +1,6 @@
 <script lang="ts">
 	// 版本号 - 每次部署时更新
-	const VERSION = '1.0.0';
+	const VERSION = '1.0.1';
 	const BUILD_DATE = new Date().toLocaleDateString('zh-CN');
 </script>
 
