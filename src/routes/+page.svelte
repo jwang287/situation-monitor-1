@@ -39,7 +39,7 @@
 		fedNews
 	} from '$lib/stores';
 	import {
-		fetchAllNews,
+		fetchAllNeteaseNews,
 		fetchAllMarkets,
 		fetchPolymarket,
 		fetchWhaleTransactions,
@@ -83,13 +83,13 @@
 		categories.forEach((cat) => news.setLoading(cat, true));
 
 		try {
-			// 使用缓存
+			// 使用网易新闻 API（国内访问更快）
 			const data = await globalCache.get(
-				createCacheKey('news', 'all'),
-				fetchAllNews,
+				createCacheKey('news', 'netease'),
+				fetchAllNeteaseNews,
 				CachePresets.NEWS
 			);
-			console.log('[Page] fetchAllNews returned:', data);
+			console.log('[Page] fetchAllNeteaseNews returned:', data);
 			Object.entries(data).forEach(([category, items]) => {
 				console.log(`[Page] Setting ${category} items:`, items.length);
 				news.setItems(category as keyof typeof data, items);

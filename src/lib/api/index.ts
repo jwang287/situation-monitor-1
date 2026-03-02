@@ -4,6 +4,10 @@
 
 export { fetchCategoryNews, fetchAllNews } from './news';
 export {
+	fetchNeteaseCategoryNews,
+	fetchAllNeteaseNews
+} from './netease-news';
+export {
 	fetchCryptoPrices,
 	fetchIndices,
 	fetchSectorPerformance,
