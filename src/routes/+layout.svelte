@@ -18,7 +18,7 @@
 			try {
 				const observer = new PerformanceObserver((list) => {
 					const entries = list.getEntries();
-					const lastEntry = entries[entries.length - 1];
+					const lastEntry = entries[entries.length - 1] as PerformanceEntry & { startTime: number };
 					if (lastEntry) {
 						console.log('[Performance] LCP:', lastEntry.startTime);
 					}
@@ -32,8 +32,8 @@
 			try {
 				const fidObserver = new PerformanceObserver((list) => {
 					for (const entry of list.getEntries()) {
-						const eventEntry = entry as PerformanceEventTiming;
-						const delay = eventEntry.processingStart - entry.startTime;
+						const eventEntry = entry as PerformanceEntry & { processingStart: number; startTime: number };
+						const delay = eventEntry.processingStart - eventEntry.startTime;
 						console.log('[Performance] FID:', delay);
 					}
 				});
@@ -65,7 +65,11 @@
 					if (typeof performance !== 'undefined') {
 						const entries = performance.getEntriesByType('navigation');
 						if (entries.length > 0) {
-							const timing = entries[0] as PerformanceNavigationTiming;
+							const timing = entries[0] as PerformanceEntry & { 
+								loadEventEnd: number; 
+								domContentLoadedEventEnd: number; 
+								startTime: number 
+							};
 							console.log('[Performance] Page Load Time:', timing.loadEventEnd - timing.startTime);
 							console.log('[Performance] DOM Ready:', timing.domContentLoadedEventEnd - timing.startTime);
 						}
