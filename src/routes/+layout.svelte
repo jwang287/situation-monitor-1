@@ -23,7 +23,7 @@
 						console.log('[Performance] LCP:', lastEntry.startTime);
 					}
 				});
-				observer.observe({ entryTypes: ['largest-contentful-paint'] as PerformanceEntryList });
+				observer.observe({ entryTypes: ['largest-contentful-paint'] });
 			} catch (e) {
 				// LCP 不支持
 			}
@@ -37,7 +37,7 @@
 						console.log('[Performance] FID:', delay);
 					}
 				});
-				fidObserver.observe({ entryTypes: ['first-input'] as PerformanceEntryList });
+				fidObserver.observe({ entryTypes: ['first-input'] });
 			} catch (e) {
 				// FID 不支持
 			}
@@ -54,7 +54,7 @@
 					}
 					console.log('[Performance] CLS:', clsValue);
 				});
-				clsObserver.observe({ entryTypes: ['layout-shift'] as PerformanceEntryList });
+				clsObserver.observe({ entryTypes: ['layout-shift'] });
 			} catch (e) {
 				// CLS 不支持
 			}

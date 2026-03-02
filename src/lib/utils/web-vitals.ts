@@ -98,7 +98,7 @@ export function initWebVitals(): void {
 					});
 				}
 			});
-			observer.observe({ entryTypes: ['largest-contentful-paint'] as PerformanceEntryList });
+			observer.observe({ entryTypes: ['largest-contentful-paint'] });
 		} catch (e) {
 			// LCP 不支持
 		}
@@ -119,7 +119,7 @@ export function initWebVitals(): void {
 					});
 				}
 			});
-			observer.observe({ entryTypes: ['paint'] as PerformanceEntryList });
+			observer.observe({ entryTypes: ['paint'] });
 		} catch (e) {
 			// Paint 不支持
 		}
@@ -142,7 +142,7 @@ export function initWebVitals(): void {
 					id: 'cls-metric'
 				});
 			});
-			observer.observe({ entryTypes: ['layout-shift'] as PerformanceEntryList });
+			observer.observe({ entryTypes: ['layout-shift'] });
 		} catch (e) {
 			// Layout Shift 不支持
 		}
