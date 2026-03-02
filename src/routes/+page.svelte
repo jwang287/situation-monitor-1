@@ -39,6 +39,7 @@
 		fedNews
 	} from '$lib/stores';
 	import {
+		fetchAllNews,
 		fetchAllNeteaseNews,
 		fetchAllMarkets,
 		fetchPolymarket,
@@ -83,13 +84,27 @@
 		categories.forEach((cat) => news.setLoading(cat, true));
 
 		try {
-			// 使用网易新闻 API（国内访问更快）
-			const data = await globalCache.get(
+			// 先尝试网易新闻 API（国内访问更快）
+			let data = await globalCache.get(
 				createCacheKey('news', 'netease'),
 				fetchAllNeteaseNews,
 				CachePresets.NEWS
 			);
-			console.log('[Page] fetchAllNeteaseNews returned:', data);
+			
+			// 检查网易是否返回了有效数据
+			const hasNeteaseData = Object.values(data).some(items => items.length > 0);
+			
+			if (!hasNeteaseData) {
+				console.log('[Page] NetEase returned no data, falling back to GDELT...');
+				// 回退到 GDELT
+				data = await globalCache.get(
+					createCacheKey('news', 'all'),
+					fetchAllNews,
+					CachePresets.NEWS
+				);
+			}
+			
+			console.log('[Page] News data returned:', data);
 			Object.entries(data).forEach(([category, items]) => {
 				console.log(`[Page] Setting ${category} items:`, items.length);
 				news.setItems(category as keyof typeof data, items);
