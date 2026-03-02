@@ -30,7 +30,7 @@ interface NeteaseNewsItem {
 }
 
 interface NeteaseResponse {
-	data?: NeteaseNewsItem[];
+	[category: string]: NeteaseNewsItem[];
 }
 
 /**
@@ -84,7 +84,7 @@ export async function fetchNeteaseCategoryNews(category: NewsCategory): Promise<
 	const neteaseCategory = NETEASE_CATEGORIES[category];
 	
 	try {
-		// 网易新闻移动端 API
+		// 网易新闻移动端 API - 使用 JSONP 格式
 		const url = `https://c.m.163.com/nc/article/list/${neteaseCategory}/0-20.html`;
 		
 		logger.log('NetEase News', `Fetching ${category} from NetEase: ${url}`);
@@ -92,7 +92,7 @@ export async function fetchNeteaseCategoryNews(category: NewsCategory): Promise<
 		const response = await fetch(url, {
 			method: 'GET',
 			headers: {
-				'Accept': 'application/json',
+				'Accept': '*/*',
 				'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15'
 			}
 		});
@@ -103,24 +103,32 @@ export async function fetchNeteaseCategoryNews(category: NewsCategory): Promise<
 
 		const text = await response.text();
 		
-		// NetEase API returns JSONP format, need to extract JSON
-		// Format: var category = {...};
-		const jsonMatch = text.match(/var\s+\w+\s*=\s*({[\s\S]*});?$/);
-		if (!jsonMatch) {
-			logger.warn('NetEase News', `No JSON found in response for ${category}`);
+		// NetEase API returns JSONP format: var category = {...};
+		// Extract the variable name and JSON content
+		const jsonpMatch = text.match(/var\s+(\w+)\s*=\s*({[\s\S]*?});?\s*$/);
+		if (!jsonpMatch) {
+			logger.warn('NetEase News', `No JSONP data found in response for ${category}`);
 			return [];
 		}
 		
-		const data: NeteaseResponse = JSON.parse(jsonMatch[1]);
+		const varName = jsonpMatch[1];
+		const jsonContent = jsonpMatch[2];
 		
-		if (!data?.data || !Array.isArray(data.data)) {
-			logger.warn('NetEase News', `${category} no articles found`);
+		logger.log('NetEase News', `Parsing JSONP variable: ${varName}`);
+		
+		const data: NeteaseResponse = JSON.parse(jsonContent);
+		
+		// The data structure is: { categoryName: [articles] }
+		const articles = data[varName];
+		
+		if (!articles || !Array.isArray(articles)) {
+			logger.warn('NetEase News', `${category} no articles array found in ${varName}`);
 			return [];
 		}
 		
-		logger.log('NetEase News', `${category} found ${data.data.length} articles`);
+		logger.log('NetEase News', `${category} found ${articles.length} articles in ${varName}`);
 
-		return data.data.map((article, index) =>
+		return articles.map((article, index) =>
 			transformNeteaseArticle(article, category, index)
 		);
 	} catch (error) {
