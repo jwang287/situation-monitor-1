@@ -257,15 +257,27 @@ interface AllMarketsData {
 }
 
 /**
- * Fetch all market data
+ * Fetch all market data - optimized with parallel loading
  */
 export async function fetchAllMarkets(): Promise<AllMarketsData> {
-	const [crypto, indices, sectors, commodities] = await Promise.all([
-		fetchCryptoPrices(),
-		fetchIndices(),
-		fetchSectorPerformance(),
-		fetchCommodities()
-	]);
+	try {
+		// Load all market data in parallel
+		const [crypto, indices, sectors, commodities] = await Promise.all([
+			fetchCryptoPrices(),
+			fetchIndices(),
+			fetchSectorPerformance(),
+			fetchCommodities()
+		]);
 
-	return { crypto, indices, sectors, commodities };
+		return { crypto, indices, sectors, commodities };
+	} catch (error) {
+		console.error('Error fetching markets:', error);
+		// Return partial data if some sources failed
+		return {
+			crypto: [],
+			indices: [],
+			sectors: [],
+			commodities: []
+		};
+	}
 }

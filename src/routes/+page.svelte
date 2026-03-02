@@ -3,27 +3,29 @@
 	import { Header, Dashboard } from '$lib/components/layout';
 	import { SettingsModal, MonitorFormModal, OnboardingModal } from '$lib/components/modals';
 	import { VersionBadge } from '$lib/components/common';
-	import {
-		NewsPanel,
-		MarketsPanel,
-		HeatmapPanel,
-		CommoditiesPanel,
-		CryptoPanel,
-		MainCharPanel,
-		CorrelationPanel,
-		NarrativePanel,
-		MonitorsPanel,
-		MapPanel,
-		WhalePanel,
-		PolymarketPanel,
-		ContractsPanel,
-		LayoffsPanel,
-		IntelPanel,
-		SituationPanel,
-		WorldLeadersPanel,
-		PrinterPanel,
-		FedPanel
-	} from '$lib/components/panels';
+	import { initWebVitals, markPerformance } from '$lib/utils/web-vitals';
+	import type { Snippet } from 'svelte';
+	
+	// 动态导入面板组件 (懒加载优化)
+	let NewsPanel: any = $state(null);
+	let MarketsPanel: any = $state(null);
+	let MapPanel: any = $state(null);
+	let HeatmapPanel: any = $state(null);
+	let CommoditiesPanel: any = $state(null);
+	let CryptoPanel: any = $state(null);
+	let MainCharPanel: any = $state(null);
+	let CorrelationPanel: any = $state(null);
+	let NarrativePanel: any = $state(null);
+	let MonitorsPanel: any = $state(null);
+	let WhalePanel: any = $state(null);
+	let PolymarketPanel: any = $state(null);
+	let ContractsPanel: any = $state(null);
+	let LayoffsPanel: any = $state(null);
+	let IntelPanel: any = $state(null);
+	let SituationPanel: any = $state(null);
+	let WorldLeadersPanel: any = $state(null);
+	let PrinterPanel: any = $state(null);
+	let FedPanel: any = $state(null);
 	import {
 		news,
 		markets,
@@ -226,11 +228,11 @@
 		onboardingOpen = true;
 	}
 
-	// 初始化分阶段加载
+	// 初始化性能监控和分阶段加载
 	async function executePhasedLoading() {
 		loadingStrategy = new LoadingStrategy();
 
-		// 阶段1: 关键数据 (首屏必需)
+		// 阶段 1: 关键数据 (首屏必需)
 		loadingStrategy.addTask({
 			name: 'loadNews',
 			phase: 'critical',
@@ -247,7 +249,7 @@
 			onError: (error) => console.error('Critical: Markets loading failed', error)
 		});
 
-		// 阶段2: 重要数据 (3秒内加载)
+		// 阶段 2: 重要数据 (3 秒内加载)
 		loadingStrategy.addTask({
 			name: 'loadMiscData',
 			phase: 'important',
@@ -256,7 +258,7 @@
 			onError: (error) => console.error('Important: Misc data loading failed', error)
 		});
 
-		// 阶段3: 背景数据 (无时间限制)
+		// 阶段 3: 背景数据 (无时间限制)
 		if (isPanelVisible('leaders')) {
 			loadingStrategy.addTask({
 				name: 'loadWorldLeaders',
@@ -295,15 +297,94 @@
 		console.log('[Page] Loading stats:', stats);
 	}
 
+	// 懒加载关键面板组件
+	async function loadCriticalPanels() {
+		markPerformance('panel-load-start');
+		
+		try {
+			const [NewsModule, MarketsModule, MapModule] = await Promise.all([
+				import('$lib/components/panels/NewsPanel.svelte'),
+				import('$lib/components/panels/MarketsPanel.svelte'),
+				import('$lib/components/panels/MapPanel.svelte')
+			]);
+			
+			NewsPanel = NewsModule.default;
+			MarketsPanel = MarketsModule.default;
+			MapPanel = MapModule.default;
+			
+			markPerformance('critical-panels-loaded');
+		} catch (error) {
+			console.error('Failed to load critical panels:', error);
+		}
+	}
+
+	// 懒加载非关键面板组件
+	async function loadNonCriticalPanels() {
+		try {
+			// 延迟加载次要面板
+			await new Promise(resolve => setTimeout(resolve, 100));
+			
+			const panels = [
+				'HeatmapPanel', 'CommoditiesPanel', 'CryptoPanel',
+				'MainCharPanel', 'CorrelationPanel', 'NarrativePanel',
+				'MonitorsPanel', 'IntelPanel'
+			];
+			
+			await Promise.all(
+				panels.map(async (panelName) => {
+					const module = await import(`$lib/components/panels/${panelName}.svelte`);
+					const panelVar = panelName.replace('Panel', '') + 'Panel';
+					// @ts-ignore
+					window[panelVar] = module.default;
+				})
+			);
+			
+			markPerformance('non-critical-panels-loaded');
+		} catch (error) {
+			console.error('Failed to load non-critical panels:', error);
+		}
+	}
+
+	// 懒加载背景面板
+	async function loadBackgroundPanels() {
+		try {
+			await new Promise(resolve => setTimeout(resolve, 500));
+			
+			const panels = [
+				'WhalePanel', 'PolymarketPanel', 'ContractsPanel',
+				'LayoffsPanel', 'SituationPanel', 'WorldLeadersPanel',
+				'PrinterPanel', 'FedPanel'
+			];
+			
+			for (const panelName of panels) {
+				try {
+					const module = await import(`$lib/components/panels/${panelName}.svelte`);
+					const panelVar = panelName.replace('Panel', '') + 'Panel';
+					// @ts-ignore
+					window[panelVar] = module.default;
+				} catch (error) {
+					console.error(`Failed to load ${panelName}:`, error);
+				}
+			}
+			
+			markPerformance('background-panels-loaded');
+		} catch (error) {
+			console.error('Failed to load background panels:', error);
+		}
+	}
+
 	// Initial load
 	onMount(() => {
+		// 初始化 Web Vitals 监控
+		initWebVitals();
+		
 		if (!settings.isOnboardingComplete()) {
 			onboardingOpen = true;
 		}
 
 		refresh.startRefresh();
 		
-		// 使用分阶段加载
+		// 并行启动：数据加载 + 组件懒加载
 		executePhasedLoading()
 			.then(() => {
 				refresh.endRefresh();
@@ -313,12 +394,17 @@
 				refresh.endRefresh([String(error)]);
 			});
 
+		// 懒加载面板组件
+		loadCriticalPanels();
+		setTimeout(() => loadNonCriticalPanels(), 50);
+		setTimeout(() => loadBackgroundPanels(), 200);
+		
 		refresh.setupAutoRefresh(handleRefresh);
 
 		// 定期清理过期缓存
 		const gcInterval = setInterval(() => {
 			globalCache.gc();
-		}, 5 * 60 * 1000); // 每5分钟
+		}, 5 * 60 * 1000); // 每 5 分钟
 
 		return () => {
 			refresh.stopAutoRefresh();

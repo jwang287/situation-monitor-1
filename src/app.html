@@ -4,17 +4,28 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="description" content="Real-time global situation monitoring dashboard" />
+		<meta name="theme-color" content="#0a0a0f" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" />
 		<title>Situation Monitor</title>
 		
-		<!-- DNS预连接 - 加速外部资源加载 -->
+		<!-- DNS 预连接 - 加速外部资源加载 -->
 		<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 		<link rel="preconnect" href="https://api.open-meteo.com" crossorigin>
+		<link rel="preconnect" href="https://api.gdeltproject.org" crossorigin>
+		<link rel="preconnect" href="https://api.coingecko.com" crossorigin>
+		<link rel="preconnect" href="https://api.stlouisfed.org" crossorigin>
+		<link rel="preconnect" href="https://earthquake.usgs.gov" crossorigin>
+		<link rel="preconnect" href="https://situation-03.jwang287.workers.dev" crossorigin>
+		
+		<!-- DNS 预取 -->
 		<link rel="dns-prefetch" href="https://api.gdeltproject.org">
 		<link rel="dns-prefetch" href="https://situation-03.jwang287.workers.dev">
 		<link rel="dns-prefetch" href="https://api.coingecko.com">
 		<link rel="dns-prefetch" href="https://api.stlouisfed.org">
 		<link rel="dns-prefetch" href="https://earthquake.usgs.gov">
+		
+		<!-- 预加载关键字体 -->
+		<link rel="preload" as="font" href="/fonts/inter-var.woff2" type="font/woff2" crossorigin>
 		
 		%sveltekit.head%
 	</head>
