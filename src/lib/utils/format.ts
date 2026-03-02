@@ -80,11 +80,16 @@ export function getChangeClass(value: number): 'up' | 'down' | '' {
 
 /**
  * Escape HTML for safe display
+ * 使用纯文本替换，避免依赖 DOM API (SSR 安全)
  */
 export function escapeHtml(text: string): string {
-	const div = document.createElement('div');
-	div.textContent = text;
-	return div.innerHTML;
+	if (!text) return '';
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
 }
 
 /**

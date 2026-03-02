@@ -2,6 +2,8 @@
  * 分阶段加载策略 - 优先显示核心内容，提升首屏加载速度
  */
 
+import { browser } from '$app/environment';
+
 export type LoadPhase = 'critical' | 'important' | 'background';
 
 export interface LoadTask {
@@ -78,10 +80,20 @@ export class LoadingStrategy {
 	}
 
 	/**
+	 * 获取当前时间戳 (浏览器环境使用 performance，Node环境使用 Date)
+	 */
+	private getNow(): number {
+		if (browser && typeof performance !== 'undefined') {
+			return performance.now();
+		}
+		return Date.now();
+	}
+
+	/**
 	 * 带超时的任务执行
 	 */
 	private async runWithTimeout(task: LoadTask): Promise<LoadResult> {
-		const startTime = performance.now();
+		const startTime = this.getNow();
 		const controller = new AbortController();
 		this.abortControllers.set(task.name, controller);
 
@@ -108,7 +120,7 @@ export class LoadingStrategy {
 			await abortablePromise;
 			clearTimeout(timeoutId);
 
-			const duration = performance.now() - startTime;
+			const duration = this.getNow() - startTime;
 			console.log(`[LoadingStrategy] Task "${task.name}" completed in ${duration.toFixed(0)}ms`);
 
 			return {
@@ -118,7 +130,7 @@ export class LoadingStrategy {
 			};
 		} catch (error) {
 			clearTimeout(timeoutId);
-			const duration = performance.now() - startTime;
+			const duration = this.getNow() - startTime;
 			const err = error instanceof Error ? error : new Error(String(error));
 
 			console.error(`[LoadingStrategy] Task "${task.name}" failed after ${duration.toFixed(0)}ms:`, err.message);
