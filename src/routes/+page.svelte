@@ -4,28 +4,30 @@
 	import { SettingsModal, MonitorFormModal, OnboardingModal } from '$lib/components/modals';
 	import { VersionBadge } from '$lib/components/common';
 	import { browser } from '$app/environment';
-	
-	// 静态导入所有面板组件 (避免 SSR 问题)
+
+	// 关键面板组件 - 首屏必需，静态导入
 	import NewsPanel from '$lib/components/panels/NewsPanel.svelte';
 	import MarketsPanel from '$lib/components/panels/MarketsPanel.svelte';
-	import MapPanel from '$lib/components/panels/MapPanel.svelte';
-	import HeatmapPanel from '$lib/components/panels/HeatmapPanel.svelte';
-	import CommoditiesPanel from '$lib/components/panels/CommoditiesPanel.svelte';
-	import CryptoPanel from '$lib/components/panels/CryptoPanel.svelte';
-	import MainCharPanel from '$lib/components/panels/MainCharPanel.svelte';
-	import CorrelationPanel from '$lib/components/panels/CorrelationPanel.svelte';
-	import NarrativePanel from '$lib/components/panels/NarrativePanel.svelte';
-	import MonitorsPanel from '$lib/components/panels/MonitorsPanel.svelte';
-	import WhalePanel from '$lib/components/panels/WhalePanel.svelte';
-	import PolymarketPanel from '$lib/components/panels/PolymarketPanel.svelte';
-	import ContractsPanel from '$lib/components/panels/ContractsPanel.svelte';
-	import LayoffsPanel from '$lib/components/panels/LayoffsPanel.svelte';
-	import IntelPanel from '$lib/components/panels/IntelPanel.svelte';
-	import SituationPanel from '$lib/components/panels/SituationPanel.svelte';
-	import WorldLeadersPanel from '$lib/components/panels/WorldLeadersPanel.svelte';
-	import PrinterPanel from '$lib/components/panels/PrinterPanel.svelte';
-	import FedPanel from '$lib/components/panels/FedPanel.svelte';
-	
+
+	// 动态导入其他面板组件（代码分割）
+	const MapPanel = $derived(browser ? import('$lib/components/panels/MapPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const HeatmapPanel = $derived(browser ? import('$lib/components/panels/HeatmapPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const CommoditiesPanel = $derived(browser ? import('$lib/components/panels/CommoditiesPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const CryptoPanel = $derived(browser ? import('$lib/components/panels/CryptoPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const MainCharPanel = $derived(browser ? import('$lib/components/panels/MainCharPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const CorrelationPanel = $derived(browser ? import('$lib/components/panels/CorrelationPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const NarrativePanel = $derived(browser ? import('$lib/components/panels/NarrativePanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const MonitorsPanel = $derived(browser ? import('$lib/components/panels/MonitorsPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const WhalePanel = $derived(browser ? import('$lib/components/panels/WhalePanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const PolymarketPanel = $derived(browser ? import('$lib/components/panels/PolymarketPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const ContractsPanel = $derived(browser ? import('$lib/components/panels/ContractsPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const LayoffsPanel = $derived(browser ? import('$lib/components/panels/LayoffsPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const IntelPanel = $derived(browser ? import('$lib/components/panels/IntelPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const SituationPanel = $derived(browser ? import('$lib/components/panels/SituationPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const WorldLeadersPanel = $derived(browser ? import('$lib/components/panels/WorldLeadersPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const PrinterPanel = $derived(browser ? import('$lib/components/panels/PrinterPanel.svelte').then(m => m.default) : Promise.resolve(null));
+	const FedPanel = $derived(browser ? import('$lib/components/panels/FedPanel.svelte').then(m => m.default) : Promise.resolve(null));
+
 	import {
 		news,
 		markets,
@@ -182,7 +184,7 @@
 			// 清除相关缓存
 			globalCache.delete(createCacheKey('news', 'all'));
 			globalCache.delete(createCacheKey('markets', 'all'));
-			
+
 			await Promise.all([loadNews(), loadMarkets()]);
 			refresh.endRefresh();
 		} catch (error) {
@@ -291,7 +293,7 @@
 		);
 
 		loadingPhase = 'complete';
-		
+
 		// 输出加载统计
 		const stats = loadingStrategy.getStats();
 		console.log('[Page] Loading stats:', stats);
@@ -304,7 +306,7 @@
 		}
 
 		refresh.startRefresh();
-		
+
 		// 执行分阶段加载
 		executePhasedLoading()
 			.then(() => {
@@ -314,7 +316,7 @@
 				console.error('[Page] Phased loading failed:', error);
 				refresh.endRefresh([String(error)]);
 			});
-		
+
 		refresh.setupAutoRefresh(handleRefresh);
 
 		// 定期清理过期缓存
@@ -343,7 +345,15 @@
 			<!-- Map Panel - Full width -->
 			{#if isPanelVisible('map')}
 				<div class="panel-slot map-slot">
-					<MapPanel monitors={$monitors.monitors} />
+					{#await MapPanel}
+						<div class="panel-loading">加载地图...</div>
+					{:then MapComponent}
+						{#if MapComponent}
+							<MapComponent monitors={$monitors.monitors} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">地图加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
@@ -387,172 +397,316 @@
 
 			{#if isPanelVisible('heatmap')}
 				<div class="panel-slot">
-					<HeatmapPanel />
+					{#await HeatmapPanel}
+						<div class="panel-loading">加载热力图...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">热力图加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('commodities')}
 				<div class="panel-slot">
-					<CommoditiesPanel />
+					{#await CommoditiesPanel}
+						<div class="panel-loading">加载商品...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">商品面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('crypto')}
 				<div class="panel-slot">
-					<CryptoPanel />
+					{#await CryptoPanel}
+						<div class="panel-loading">加载加密货币...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">加密货币面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 分析面板 -->
 			{#if isPanelVisible('mainchar')}
 				<div class="panel-slot">
-					<MainCharPanel />
+					{#await MainCharPanel}
+						<div class="panel-loading">加载主图...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">主图加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('correlation')}
 				<div class="panel-slot">
-					<CorrelationPanel news={$allNewsItems} />
+					{#await CorrelationPanel}
+						<div class="panel-loading">加载相关性分析...</div>
+					{:then Component}
+						{#if Component}
+							<Component news={$allNewsItems} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">相关性分析加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('narrative')}
 				<div class="panel-slot">
-					<NarrativePanel news={$allNewsItems} />
+					{#await NarrativePanel}
+						<div class="panel-loading">加载叙事分析...</div>
+					{:then Component}
+						{#if Component}
+							<Component news={$allNewsItems} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">叙事分析加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 情报面板 -->
 			{#if isPanelVisible('intel')}
 				<div class="panel-slot">
-					<IntelPanel />
+					{#await IntelPanel}
+						<div class="panel-loading">加载情报...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">情报面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 美联储面板 -->
 			{#if isPanelVisible('fed')}
 				<div class="panel-slot">
-					<FedPanel />
+					{#await FedPanel}
+						<div class="panel-loading">加载美联储数据...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">美联储面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 世界各国领导人面板 -->
 			{#if isPanelVisible('leaders')}
 				<div class="panel-slot">
-					<WorldLeadersPanel {leaders} loading={leadersLoading} />
+					{#await WorldLeadersPanel}
+						<div class="panel-loading">加载领导人数据...</div>
+					{:then Component}
+						{#if Component}
+							<Component {leaders} loading={leadersLoading} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">领导人面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 态势监控面板 -->
 			{#if isPanelVisible('venezuela')}
 				<div class="panel-slot">
-					<SituationPanel
-						panelId="venezuela"
-						config={{
-							title: '委内瑞拉监控',
-							subtitle: '人道主义危机监控',
-							criticalKeywords: ['maduro', 'caracas', 'venezuela', 'guaido']
-						}}
-						news={$allNewsItems.filter(
-							(n) =>
-								n.title.toLowerCase().includes('venezuela') ||
-								n.title.toLowerCase().includes('maduro')
-						)}
-					/>
+					{#await SituationPanel}
+						<div class="panel-loading">加载委内瑞拉监控...</div>
+					{:then Component}
+						{#if Component}
+							<Component
+								panelId="venezuela"
+								config={{
+									title: '委内瑞拉监控',
+									subtitle: '人道主义危机监控',
+									criticalKeywords: ['maduro', 'caracas', 'venezuela', 'guaido']
+								}}
+								news={$allNewsItems.filter(
+									(n) =>
+										n.title.toLowerCase().includes('venezuela') ||
+										n.title.toLowerCase().includes('maduro')
+								)}
+							/>
+						{/if}
+					{:catch error}
+						<div class="panel-error">委内瑞拉监控加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('greenland')}
 				<div class="panel-slot">
-					<SituationPanel
-						panelId="greenland"
-						config={{
-							title: '格陵兰监控',
-							subtitle: '北极地缘政治监控',
-							criticalKeywords: ['greenland', 'arctic', 'nuuk', 'denmark']
-						}}
-						news={$allNewsItems.filter(
-							(n) =>
-								n.title.toLowerCase().includes('greenland') ||
-								n.title.toLowerCase().includes('arctic')
-						)}
-					/>
+					{#await SituationPanel}
+						<div class="panel-loading">加载格陵兰监控...</div>
+					{:then Component}
+						{#if Component}
+							<Component
+								panelId="greenland"
+								config={{
+									title: '格陵兰监控',
+									subtitle: '北极地缘政治监控',
+									criticalKeywords: ['greenland', 'arctic', 'nuuk', 'denmark']
+								}}
+								news={$allNewsItems.filter(
+									(n) =>
+										n.title.toLowerCase().includes('greenland') ||
+										n.title.toLowerCase().includes('arctic')
+								)}
+							/>
+						{/if}
+					{:catch error}
+						<div class="panel-error">格陵兰监控加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('iran')}
 				<div class="panel-slot">
-					<SituationPanel
-						panelId="iran"
-						config={{
-							title: '伊朗危机',
-							subtitle: '革命抗议、政权不稳定与核计划',
-							criticalKeywords: [
-								'protest',
-								'uprising',
-								'revolution',
-								'crackdown',
-								'killed',
-								'nuclear',
-								'strike',
-								'attack',
-								'irgc',
-								'khamenei'
-							]
-						}}
-						news={$allNewsItems.filter(
-							(n) =>
-								n.title.toLowerCase().includes('iran') ||
-								n.title.toLowerCase().includes('tehran') ||
-								n.title.toLowerCase().includes('irgc')
-						)}
-					/>
+					{#await SituationPanel}
+						<div class="panel-loading">加载伊朗危机监控...</div>
+					{:then Component}
+						{#if Component}
+							<Component
+								panelId="iran"
+								config={{
+									title: '伊朗危机',
+									subtitle: '革命抗议、政权不稳定与核计划',
+									criticalKeywords: [
+										'protest',
+										'uprising',
+										'revolution',
+										'crackdown',
+										'killed',
+										'nuclear',
+										'strike',
+										'attack',
+										'irgc',
+										'khamenei'
+									]
+								}}
+								news={$allNewsItems.filter(
+									(n) =>
+										n.title.toLowerCase().includes('iran') ||
+										n.title.toLowerCase().includes('tehran') ||
+										n.title.toLowerCase().includes('irgc')
+								)}
+							/>
+						{/if}
+					{:catch error}
+						<div class="panel-error">伊朗危机监控加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 其他数据源面板 -->
 			{#if isPanelVisible('whales')}
 				<div class="panel-slot">
-					<WhalePanel {whales} />
+					{#await WhalePanel}
+						<div class="panel-loading">加载鲸鱼交易...</div>
+					{:then Component}
+						{#if Component}
+							<Component {whales} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">鲸鱼交易面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('polymarket')}
 				<div class="panel-slot">
-					<PolymarketPanel {predictions} />
+					{#await PolymarketPanel}
+						<div class="panel-loading">加载预测市场...</div>
+					{:then Component}
+						{#if Component}
+							<Component {predictions} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">预测市场面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('contracts')}
 				<div class="panel-slot">
-					<ContractsPanel {contracts} />
+					{#await ContractsPanel}
+						<div class="panel-loading">加载政府合同...</div>
+					{:then Component}
+						{#if Component}
+							<Component {contracts} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">政府合同面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			{#if isPanelVisible('layoffs')}
 				<div class="panel-slot">
-					<LayoffsPanel {layoffs} />
+					{#await LayoffsPanel}
+						<div class="panel-loading">加载裁员数据...</div>
+					{:then Component}
+						{#if Component}
+							<Component {layoffs} />
+						{/if}
+					{:catch error}
+						<div class="panel-error">裁员面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 印钞机面板 -->
 			{#if isPanelVisible('printer')}
 				<div class="panel-slot">
-					<PrinterPanel />
+					{#await PrinterPanel}
+						<div class="panel-loading">加载印钞机数据...</div>
+					{:then Component}
+						{#if Component}
+							<Component />
+						{/if}
+					{:catch error}
+						<div class="panel-error">印钞机面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 
 			<!-- 自定义监控（始终在最后） -->
 			{#if isPanelVisible('monitors')}
 				<div class="panel-slot">
-					<MonitorsPanel
-						monitors={$monitors.monitors}
-						matches={$monitors.matches}
-						onCreateMonitor={handleCreateMonitor}
-						onEditMonitor={handleEditMonitor}
-						onDeleteMonitor={handleDeleteMonitor}
-						onToggleMonitor={handleToggleMonitor}
-					/>
+					{#await MonitorsPanel}
+						<div class="panel-loading">加载监控器...</div>
+					{:then Component}
+						{#if Component}
+							<Component
+								monitors={$monitors.monitors}
+								matches={$monitors.matches}
+								onCreateMonitor={handleCreateMonitor}
+								onEditMonitor={handleEditMonitor}
+								onDeleteMonitor={handleDeleteMonitor}
+								onToggleMonitor={handleToggleMonitor}
+							/>
+						{/if}
+					{:catch error}
+						<div class="panel-error">监控器面板加载失败</div>
+					{/await}
 				</div>
 			{/if}
 		</Dashboard>
@@ -590,6 +744,24 @@
 	.map-slot {
 		column-span: all;
 		margin-bottom: 0.5rem;
+	}
+
+	.panel-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 200px;
+		color: var(--text-muted);
+		font-size: 0.875rem;
+	}
+
+	.panel-error {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 200px;
+		color: var(--danger);
+		font-size: 0.875rem;
 	}
 
 	@media (max-width: 768px) {
