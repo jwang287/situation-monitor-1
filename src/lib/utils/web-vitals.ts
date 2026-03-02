@@ -71,9 +71,6 @@ function reportMetric({ name, value, rating }: WebVitalsReport): void {
 			rating,
 			thresholds: THRESHOLDS[name as keyof typeof THRESHOLDS]
 		});
-
-		// 发送到分析端点 (可选)
-		// sendToAnalytics(name, value, rating);
 	}
 }
 
@@ -83,82 +80,115 @@ function reportMetric({ name, value, rating }: WebVitalsReport): void {
 export function initWebVitals(): void {
 	if (!browser) return;
 
-	// 动态导入 web-vitals 库
-	import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB, onINP }) => {
-		// Cumulative Layout Shift (CLS)
-		onCLS((metric) => {
-			reportMetric({
-				name: 'CLS',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'CLS'),
-				id: metric.id,
-				attribution: metric.attribution
+	// 使用原生 Performance API 作为备选
+	if (typeof window !== 'undefined' && 'performance' in window) {
+		// 观察 LCP
+		try {
+			const observer = new PerformanceObserver((list) => {
+				const entries = list.getEntries();
+				const lastEntry = entries[entries.length - 1] as PerformanceEntry & { renderTime?: number; loadTime?: number };
+				if (lastEntry) {
+					const value = lastEntry.renderTime || lastEntry.loadTime || 0;
+					reportMetric({
+						name: 'LCP',
+						value,
+						delta: value,
+						rating: getRating(value, 'LCP'),
+						id: lastEntry.name
+					});
+				}
 			});
-		});
+			observer.observe({ entryTypes: ['largest-contentful-paint'] as PerformanceEntryList });
+		} catch (e) {
+			// LCP 不支持
+		}
 
-		// First Input Delay (FID)
-		onFID((metric) => {
-			reportMetric({
-				name: 'FID',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'FID'),
-				id: metric.id,
-				attribution: metric.attribution
+		// 观察 FCP
+		try {
+			const observer = new PerformanceObserver((list) => {
+				const entries = list.getEntries();
+				const firstEntry = entries[0] as PerformanceEntry & { renderTime?: number; loadTime?: number };
+				if (firstEntry) {
+					const value = firstEntry.renderTime || firstEntry.loadTime || 0;
+					reportMetric({
+						name: 'FCP',
+						value,
+						delta: value,
+						rating: getRating(value, 'FCP'),
+						id: firstEntry.name
+					});
+				}
 			});
-		});
+			observer.observe({ entryTypes: ['paint'] as PerformanceEntryList });
+		} catch (e) {
+			// Paint 不支持
+		}
 
-		// First Contentful Paint (FCP)
-		onFCP((metric) => {
-			reportMetric({
-				name: 'FCP',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'FCP'),
-				id: metric.id,
-				attribution: metric.attribution
+		// 观察 CLS
+		try {
+			let clsValue = 0;
+			const observer = new PerformanceObserver((list) => {
+				for (const entry of list.getEntries()) {
+					const layoutEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+					if (!layoutEntry.hadRecentInput) {
+						clsValue += layoutEntry.value || 0;
+					}
+				}
+				reportMetric({
+					name: 'CLS',
+					value: clsValue,
+					delta: clsValue,
+					rating: getRating(clsValue, 'CLS'),
+					id: 'cls-metric'
+				});
 			});
-		});
+			observer.observe({ entryTypes: ['layout-shift'] as PerformanceEntryList });
+		} catch (e) {
+			// Layout Shift 不支持
+		}
+	}
 
-		// Largest Contentful Paint (LCP)
-		onLCP((metric) => {
-			reportMetric({
-				name: 'LCP',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'LCP'),
-				id: metric.id,
-				attribution: metric.attribution
-			});
+	// 尝试加载 web-vitals 库 (如果可用)
+	if (browser && typeof window !== 'undefined') {
+		import('web-vitals').then((webVitals) => {
+			if (webVitals.onCLS) {
+				webVitals.onCLS((metric: { value: number; delta: number; id: string; name: string }) => {
+					reportMetric({
+						name: 'CLS',
+						value: metric.value,
+						delta: metric.delta,
+						rating: getRating(metric.value, 'CLS'),
+						id: metric.id
+					});
+				});
+			}
+			if (webVitals.onFCP) {
+				webVitals.onFCP((metric: { value: number; delta: number; id: string; name: string }) => {
+					reportMetric({
+						name: 'FCP',
+						value: metric.value,
+						delta: metric.delta,
+						rating: getRating(metric.value, 'FCP'),
+						id: metric.id
+					});
+				});
+			}
+			if (webVitals.onLCP) {
+				webVitals.onLCP((metric: { value: number; delta: number; id: string; name: string }) => {
+					reportMetric({
+						name: 'LCP',
+						value: metric.value,
+						delta: metric.delta,
+						rating: getRating(metric.value, 'LCP'),
+						id: metric.id
+					});
+				});
+			}
+		}).catch(() => {
+			// web-vitals 库加载失败，使用原生 API
+			console.log('[Web Vitals] Using native Performance API');
 		});
-
-		// Time to First Byte (TTFB)
-		onTTFB((metric) => {
-			reportMetric({
-				name: 'TTFB',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'TTFB'),
-				id: metric.id,
-				attribution: metric.attribution
-			});
-		});
-
-		// Interaction to Next Paint (INP)
-		onINP((metric) => {
-			reportMetric({
-				name: 'INP',
-				value: metric.value,
-				delta: metric.delta,
-				rating: getRating(metric.value, 'INP'),
-				id: metric.id,
-				attribution: metric.attribution
-			});
-		});
-	}).catch((error) => {
-		console.warn('[Web Vitals] Failed to load web-vitals library:', error);
-	});
+	}
 }
 
 /**
@@ -184,29 +214,6 @@ export function getPerformanceReport(): Record<string, { value: number; rating: 
 	});
 
 	return report;
-}
-
-/**
- * 发送性能数据到分析服务
- */
-async function sendToAnalytics(
-	name: string,
-	value: number,
-	rating: 'good' | 'needs-improvement' | 'poor'
-): Promise<void> {
-	// 实现分析数据发送逻辑
-	// 例如：发送到 Google Analytics, Plausible, 或自定义端点
-	try {
-		await navigator.sendBeacon('/api/analytics/performance', JSON.stringify({
-			name,
-			value,
-			rating,
-			timestamp: Date.now(),
-			url: window.location.href
-		}));
-	} catch (error) {
-		console.error('[Web Vitals] Failed to send analytics:', error);
-	}
 }
 
 /**

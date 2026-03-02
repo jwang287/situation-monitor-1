@@ -4,28 +4,29 @@
 	import { SettingsModal, MonitorFormModal, OnboardingModal } from '$lib/components/modals';
 	import { VersionBadge } from '$lib/components/common';
 	import { initWebVitals, markPerformance } from '$lib/utils/web-vitals';
-	import type { Snippet } from 'svelte';
+	import { browser } from '$app/environment';
 	
-	// 动态导入面板组件 (懒加载优化)
-	let NewsPanel: any = $state(null);
-	let MarketsPanel: any = $state(null);
-	let MapPanel: any = $state(null);
-	let HeatmapPanel: any = $state(null);
-	let CommoditiesPanel: any = $state(null);
-	let CryptoPanel: any = $state(null);
-	let MainCharPanel: any = $state(null);
-	let CorrelationPanel: any = $state(null);
-	let NarrativePanel: any = $state(null);
-	let MonitorsPanel: any = $state(null);
-	let WhalePanel: any = $state(null);
-	let PolymarketPanel: any = $state(null);
-	let ContractsPanel: any = $state(null);
-	let LayoffsPanel: any = $state(null);
-	let IntelPanel: any = $state(null);
-	let SituationPanel: any = $state(null);
-	let WorldLeadersPanel: any = $state(null);
-	let PrinterPanel: any = $state(null);
-	let FedPanel: any = $state(null);
+	// 静态导入所有面板组件 (避免 SSR 问题)
+	import NewsPanel from '$lib/components/panels/NewsPanel.svelte';
+	import MarketsPanel from '$lib/components/panels/MarketsPanel.svelte';
+	import MapPanel from '$lib/components/panels/MapPanel.svelte';
+	import HeatmapPanel from '$lib/components/panels/HeatmapPanel.svelte';
+	import CommoditiesPanel from '$lib/components/panels/CommoditiesPanel.svelte';
+	import CryptoPanel from '$lib/components/panels/CryptoPanel.svelte';
+	import MainCharPanel from '$lib/components/panels/MainCharPanel.svelte';
+	import CorrelationPanel from '$lib/components/panels/CorrelationPanel.svelte';
+	import NarrativePanel from '$lib/components/panels/NarrativePanel.svelte';
+	import MonitorsPanel from '$lib/components/panels/MonitorsPanel.svelte';
+	import WhalePanel from '$lib/components/panels/WhalePanel.svelte';
+	import PolymarketPanel from '$lib/components/panels/PolymarketPanel.svelte';
+	import ContractsPanel from '$lib/components/panels/ContractsPanel.svelte';
+	import LayoffsPanel from '$lib/components/panels/LayoffsPanel.svelte';
+	import IntelPanel from '$lib/components/panels/IntelPanel.svelte';
+	import SituationPanel from '$lib/components/panels/SituationPanel.svelte';
+	import WorldLeadersPanel from '$lib/components/panels/WorldLeadersPanel.svelte';
+	import PrinterPanel from '$lib/components/panels/PrinterPanel.svelte';
+	import FedPanel from '$lib/components/panels/FedPanel.svelte';
+	
 	import {
 		news,
 		markets,
@@ -297,86 +298,12 @@
 		console.log('[Page] Loading stats:', stats);
 	}
 
-	// 懒加载关键面板组件
-	async function loadCriticalPanels() {
-		markPerformance('panel-load-start');
-		
-		try {
-			const [NewsModule, MarketsModule, MapModule] = await Promise.all([
-				import('$lib/components/panels/NewsPanel.svelte'),
-				import('$lib/components/panels/MarketsPanel.svelte'),
-				import('$lib/components/panels/MapPanel.svelte')
-			]);
-			
-			NewsPanel = NewsModule.default;
-			MarketsPanel = MarketsModule.default;
-			MapPanel = MapModule.default;
-			
-			markPerformance('critical-panels-loaded');
-		} catch (error) {
-			console.error('Failed to load critical panels:', error);
-		}
-	}
-
-	// 懒加载非关键面板组件
-	async function loadNonCriticalPanels() {
-		try {
-			// 延迟加载次要面板
-			await new Promise(resolve => setTimeout(resolve, 100));
-			
-			const panels = [
-				'HeatmapPanel', 'CommoditiesPanel', 'CryptoPanel',
-				'MainCharPanel', 'CorrelationPanel', 'NarrativePanel',
-				'MonitorsPanel', 'IntelPanel'
-			];
-			
-			await Promise.all(
-				panels.map(async (panelName) => {
-					const module = await import(`$lib/components/panels/${panelName}.svelte`);
-					const panelVar = panelName.replace('Panel', '') + 'Panel';
-					// @ts-ignore
-					window[panelVar] = module.default;
-				})
-			);
-			
-			markPerformance('non-critical-panels-loaded');
-		} catch (error) {
-			console.error('Failed to load non-critical panels:', error);
-		}
-	}
-
-	// 懒加载背景面板
-	async function loadBackgroundPanels() {
-		try {
-			await new Promise(resolve => setTimeout(resolve, 500));
-			
-			const panels = [
-				'WhalePanel', 'PolymarketPanel', 'ContractsPanel',
-				'LayoffsPanel', 'SituationPanel', 'WorldLeadersPanel',
-				'PrinterPanel', 'FedPanel'
-			];
-			
-			for (const panelName of panels) {
-				try {
-					const module = await import(`$lib/components/panels/${panelName}.svelte`);
-					const panelVar = panelName.replace('Panel', '') + 'Panel';
-					// @ts-ignore
-					window[panelVar] = module.default;
-				} catch (error) {
-					console.error(`Failed to load ${panelName}:`, error);
-				}
-			}
-			
-			markPerformance('background-panels-loaded');
-		} catch (error) {
-			console.error('Failed to load background panels:', error);
-		}
-	}
-
 	// Initial load
 	onMount(() => {
 		// 初始化 Web Vitals 监控
-		initWebVitals();
+		if (browser) {
+			initWebVitals();
+		}
 		
 		if (!settings.isOnboardingComplete()) {
 			onboardingOpen = true;
@@ -384,7 +311,7 @@
 
 		refresh.startRefresh();
 		
-		// 并行启动：数据加载 + 组件懒加载
+		// 执行分阶段加载
 		executePhasedLoading()
 			.then(() => {
 				refresh.endRefresh();
@@ -393,11 +320,6 @@
 				console.error('[Page] Phased loading failed:', error);
 				refresh.endRefresh([String(error)]);
 			});
-
-		// 懒加载面板组件
-		loadCriticalPanels();
-		setTimeout(() => loadNonCriticalPanels(), 50);
-		setTimeout(() => loadBackgroundPanels(), 200);
 		
 		refresh.setupAutoRefresh(handleRefresh);
 
