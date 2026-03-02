@@ -10,9 +10,7 @@ export default defineConfig({
 			output: {
 				manualChunks: {
 					// 分离 D3 库 (用于图表和地图)
-					'd3-vendor': ['d3', 'topojson-client'],
-					// 分离 Svelte 运行时
-					'svelte-vendor': ['svelte', '@sveltejs/kit', 'svelte/store']
+					'd3-vendor': ['d3', 'topojson-client']
 				}
 			}
 		},
@@ -28,13 +26,6 @@ export default defineConfig({
 	
 	// 优化依赖预构建
 	optimizeDeps: {
-		include: ['d3', 'topojson-client'],
-		exclude: ['@sveltejs/kit']
-	},
-	
-	// SSR 优化
-	ssr: {
-		// 外部化大型依赖
-		noExternal: ['@sveltejs/kit']
+		include: ['d3', 'topojson-client']
 	}
 });
