@@ -175,46 +175,36 @@ function createEmptyNewsResult(): Record<NewsCategory, NewsItem[]> {
 }
 
 /**
- * Fetch all news - optimized with grouped parallel loading
- * Groups categories into 2 batches to balance speed and rate limiting
+ * Fetch all news - all categories in parallel for maximum speed
+ * Uses Promise.allSettled to handle partial failures gracefully
  */
 export async function fetchAllNews(): Promise<Record<NewsCategory, NewsItem[]>> {
 	const result = createEmptyNewsResult();
 	
-	// Group 1: Critical news categories (load first, in parallel)
-	const group1: NewsCategory[] = ['politics', 'tech', 'finance'];
-	
-	// Group 2: Secondary categories (load after short delay)
-	const group2: NewsCategory[] = ['gov', 'ai', 'intel'];
-	
 	try {
-		// Load first group in parallel
-		const [politics, tech, finance] = await Promise.all([
+		// Fetch all categories in parallel for maximum speed
+		const results = await Promise.allSettled([
 			fetchCategoryNews('politics'),
 			fetchCategoryNews('tech'),
-			fetchCategoryNews('finance')
-		]);
-		
-		result.politics = politics;
-		result.tech = tech;
-		result.finance = finance;
-		
-		// Short delay to avoid rate limiting
-		await delay(600);
-		
-		// Load second group in parallel
-		const [gov, ai, intel] = await Promise.all([
+			fetchCategoryNews('finance'),
 			fetchCategoryNews('gov'),
 			fetchCategoryNews('ai'),
 			fetchCategoryNews('intel')
 		]);
 		
-		result.gov = gov;
-		result.ai = ai;
-		result.intel = intel;
+		// Assign results, using empty array for failed requests
+		const categories: NewsCategory[] = ['politics', 'tech', 'finance', 'gov', 'ai', 'intel'];
+		results.forEach((res, index) => {
+			const category = categories[index];
+			if (res.status === 'fulfilled') {
+				result[category] = res.value;
+			} else {
+				logger.warn('News API', `Failed to fetch ${category}:`, res.reason);
+				result[category] = [];
+			}
+		});
 	} catch (error) {
 		console.error('Error fetching news:', error);
-		// Return partial results if some categories failed
 	}
 	
 	return result;
