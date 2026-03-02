@@ -26,7 +26,7 @@ interface LoadResult {
 export class LoadingStrategy {
 	private tasks: LoadTask[] = [];
 	private results: LoadResult[] = [];
-	private abortControllers = new Map<string, AbortController>();
+	private timeoutIds = new Map<string, NodeJS.Timeout>();
 
 	/**
 	 * 添加加载任务
@@ -82,31 +82,19 @@ export class LoadingStrategy {
 	 */
 	private async runWithTimeout(task: LoadTask): Promise<LoadResult> {
 		const startTime = Date.now();
-		const controller = new AbortController();
-		this.abortControllers.set(task.name, controller);
-
-		const timeoutId = setTimeout(() => {
-			controller.abort();
-			console.warn(`[LoadingStrategy] Task "${task.name}" timed out after ${task.timeout}ms`);
-		}, task.timeout);
+		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			// 创建可中断的 Promise
-			const abortablePromise = new Promise<void>((resolve, reject) => {
-				// 监听取消信号
-				controller.signal.addEventListener('abort', () => {
-					reject(new Error(`Task "${task.name}" was aborted`));
-				});
-
-				// 执行任务
-				task
-					.loader()
-					.then(() => resolve())
-					.catch((error) => reject(error));
+			// 创建带超时的 Promise
+			const timeoutPromise = new Promise<void>((_, reject) => {
+				timeoutId = setTimeout(() => {
+					console.warn(`[LoadingStrategy] Task "${task.name}" timed out after ${task.timeout}ms`);
+					reject(new Error(`Task "${task.name}" timed out`));
+				}, task.timeout);
 			});
 
-			await abortablePromise;
-			clearTimeout(timeoutId);
+			// 执行任务，设置超时
+			await Promise.race([task.loader(), timeoutPromise]);
 
 			const duration = Date.now() - startTime;
 			console.log(`[LoadingStrategy] Task "${task.name}" completed in ${duration}ms`);
@@ -117,7 +105,6 @@ export class LoadingStrategy {
 				duration
 			};
 		} catch (error) {
-			clearTimeout(timeoutId);
 			const duration = Date.now() - startTime;
 			const err = error instanceof Error ? error : new Error(String(error));
 
@@ -133,7 +120,9 @@ export class LoadingStrategy {
 				error: err
 			};
 		} finally {
-			this.abortControllers.delete(task.name);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
 		}
 	}
 
@@ -142,11 +131,11 @@ export class LoadingStrategy {
 	 */
 	abortAll(): void {
 		console.log('[LoadingStrategy] Aborting all tasks');
-		this.abortControllers.forEach((controller, name) => {
-			controller.abort();
+		this.timeoutIds.forEach((timeoutId, name) => {
+			clearTimeout(timeoutId);
 			console.log(`[LoadingStrategy] Aborted task: ${name}`);
 		});
-		this.abortControllers.clear();
+		this.timeoutIds.clear();
 	}
 
 	/**
@@ -193,7 +182,7 @@ export class LoadingStrategy {
 	reset(): void {
 		this.tasks = [];
 		this.results = [];
-		this.abortControllers.clear();
+		this.timeoutIds.clear();
 	}
 }
 
